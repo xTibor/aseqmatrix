@@ -1,0 +1,8 @@
+[package]
+name = "dangling-wires"
+version = "0.1.0"
+authors = ["Nagy Tibor <xnagytibor@protonmail.com>"]
+edition = "2018"
+
+[dependencies]
+sdl2 = { version = "0.34", features = ["gfx", "image"] }
