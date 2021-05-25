@@ -1,11 +1,12 @@
+use alsa::seq::{PortCap, PortType};
+use alsa::seq::{Addr, ClientIter, PortInfo, PortIter, PortSubscribe, PortSubscribeIter, QuerySubsType, Seq};
+use sdl2::event::Event;
 use sdl2::image::LoadTexture;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels;
-use sdl2::{
-    event::Event,
-    rect::Rect,
-    render::{Canvas, RenderTarget, Texture},
-};
+use sdl2::rect::Rect;
+use sdl2::render::{Canvas, RenderTarget, Texture};
+use std::ffi::{CStr, CString};
 
 const TILE_SIZE: usize = 12;
 const TILES_PER_LINE: usize = 16;
@@ -77,10 +78,7 @@ fn draw_character<T: RenderTarget>(
             character as usize
         };
 
-        (
-            (tmp % TILES_PER_LINE) as isize,
-            (tmp / TILES_PER_LINE) as isize * 2,
-        )
+        ((tmp % TILES_PER_LINE) as isize, (tmp / TILES_PER_LINE) as isize * 2)
     };
 
     let (dx, dy) = match rotation {
@@ -122,10 +120,7 @@ fn draw_string<T: RenderTarget>(
             canvas,
             texture,
             character,
-            (
-                target.0 + index as isize * dx,
-                target.1 + index as isize * dy,
-            ),
+            (target.0 + index as isize * dx, target.1 + index as isize * dy),
             rotation,
         )?;
     }
@@ -133,6 +128,61 @@ fn draw_string<T: RenderTarget>(
 }
 
 fn main() -> Result<(), String> {
+    let seq = Seq::open(None, None, false).map_err(|e| e.to_string())?;
+
+    /*
+    seq.set_client_name(&CString::new("MIDI Matrix").map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    let mut portinfo = PortInfo::empty().map_err(|e| e.to_string())?;
+    portinfo.set_type(PortType::APPLICATION | PortType::MIDI_GENERIC);
+    portinfo.set_capability(PortCap::empty());
+    portinfo.set_name(&CString::new("MIDI Matrix port").map_err(|e| e.to_string())?);
+    seq.create_port(&portinfo).map_err(|e| e.to_string())?;
+    let mut sub = PortSubscribe::empty().map_err(|e| e.to_string())?;
+    sub.set_sender(Addr::system_announce());
+    sub.set_dest(portinfo.addr());
+    seq.subscribe_port(&sub).map_err(|e| e.to_string())?;
+    */
+
+    for client in ClientIter::new(&seq) {
+        for port in PortIter::new(&seq, client.get_client()) {
+            println!("{:?}", port);
+            println!("{:?}, {:?}", port.get_capability(), port.get_type());
+
+            if port.get_capability().contains(PortCap::SUBS_READ) {
+                println!("input")
+            }
+
+            if port.get_capability().contains(PortCap::SUBS_WRITE) {
+                println!("output")
+            }
+
+            for sub in PortSubscribeIter::new(&seq, port.addr(), QuerySubsType::WRITE) {
+                println!(">>> {:?} -> {:?}", sub.get_sender(), sub.get_dest());
+            }
+            println!();
+        }
+    }
+
+    // Unsub
+    //seq.unsubscribe_port(Addr { client: 14, port: 0 }, Addr { client: 129, port: 0 })
+    //    .map_err(|e| e.to_string())?;
+
+    // Sub
+    //let mut sub = PortSubscribe::empty().map_err(|e| e.to_string())?;
+    //sub.set_sender(Addr { client: 14, port: 0 });
+    //sub.set_dest(Addr { client: 129, port: 0 });
+    //seq.subscribe_port(&sub).map_err(|e| e.to_string())?;
+
+
+/*
+    let mut seq_input = seq.input();
+    loop {
+        while seq_input.event_input_pending(true).map_err(|e| e.to_string())? != 0 {
+            println!("{:?}", seq_input.event_input());
+        }
+    }
+*/
+
     let sdl_context = sdl2::init()?;
     let video_subsys = sdl_context.video()?;
     let window = video_subsys
@@ -173,10 +223,12 @@ fn main() -> Result<(), String> {
     ];
 
     {
-        let window_width = (1 + inputs.len() * 2 + 1 + outputs.iter().map(|s| s.len()).max().unwrap_or(0) + 2) * TILE_SIZE;
-        let window_height = (1 + outputs.len() * 2 + 1 + inputs.iter().map(|s| s.len()).max().unwrap_or(0) + 2) * TILE_SIZE;
+        let window_width = (inputs.len() * 2 + outputs.iter().map(|s| s.len()).max().unwrap_or(0) + 4) * TILE_SIZE;
+        let window_height = (outputs.len() * 2 + inputs.iter().map(|s| s.len()).max().unwrap_or(0) + 4) * TILE_SIZE;
         let window = canvas.window_mut();
-        window.set_size(window_width as u32, window_height as u32).map_err(|e| e.to_string())?;
+        window
+            .set_size(window_width as u32, window_height as u32)
+            .map_err(|e| e.to_string())?;
     }
 
     for (output_index, output) in outputs.iter().enumerate() {
@@ -199,7 +251,14 @@ fn main() -> Result<(), String> {
 
     for y in 0..outputs.len() {
         for x in 0..inputs.len() {
-            draw_tiles(&mut canvas, &texture, (0, 0), (1 + x as isize * 2, 1 + y as isize * 2), 2, 2)?;
+            draw_tiles(
+                &mut canvas,
+                &texture,
+                (0, 0),
+                (1 + x as isize * 2, 1 + y as isize * 2),
+                2,
+                2,
+            )?;
         }
     }
 
