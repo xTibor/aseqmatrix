@@ -7,29 +7,59 @@ use sdl2::{
     render::{Canvas, RenderTarget, Texture},
 };
 
-const TILE_WIDTH: usize = 12;
-const TILE_HEIGHT: usize = 12;
+const TILE_SIZE: usize = 12;
 const TILES_PER_LINE: usize = 16;
 
 fn draw_tile<T: RenderTarget>(
     canvas: &mut Canvas<T>,
     texture: &Texture,
-    source: (usize, usize),
-    target: (usize, usize),
+    source: (isize, isize),
+    target: (isize, isize),
+    rotation: usize,
 ) -> Result<(), String> {
     let source_rect = Rect::new(
-        source.0 as i32 * TILE_WIDTH as i32,
-        source.1 as i32 * TILE_HEIGHT as i32,
-        TILE_WIDTH as u32,
-        TILE_HEIGHT as u32,
+        source.0 as i32 * TILE_SIZE as i32,
+        source.1 as i32 * TILE_SIZE as i32,
+        TILE_SIZE as u32,
+        TILE_SIZE as u32,
     );
     let target_rect = Rect::new(
-        target.0 as i32 * TILE_WIDTH as i32,
-        target.1 as i32 * TILE_HEIGHT as i32,
-        TILE_WIDTH as u32,
-        TILE_HEIGHT as u32,
+        target.0 as i32 * TILE_SIZE as i32,
+        target.1 as i32 * TILE_SIZE as i32,
+        TILE_SIZE as u32,
+        TILE_SIZE as u32,
     );
-    canvas.copy(&texture, source_rect, target_rect)?;
+    canvas.copy_ex(
+        &texture,
+        source_rect,
+        target_rect,
+        90.0 * rotation as f64,
+        None,
+        false,
+        false,
+    )?;
+    Ok(())
+}
+
+fn draw_tiles<T: RenderTarget>(
+    canvas: &mut Canvas<T>,
+    texture: &Texture,
+    source: (isize, isize),
+    target: (isize, isize),
+    width: usize,
+    height: usize,
+) -> Result<(), String> {
+    for dy in 0..height {
+        for dx in 0..width {
+            draw_tile(
+                canvas,
+                texture,
+                (source.0 + dx as isize, source.1 + dy as isize),
+                (target.0 + dx as isize, target.1 + dy as isize),
+                0,
+            )?;
+        }
+    }
     Ok(())
 }
 
@@ -37,7 +67,8 @@ fn draw_character<T: RenderTarget>(
     canvas: &mut Canvas<T>,
     texture: &Texture,
     character: char,
-    target: (usize, usize),
+    target: (isize, isize),
+    rotation: usize,
 ) -> Result<(), String> {
     let source = {
         let tmp = if (character <= '\u{001F}') || (character >= '\u{0080}') {
@@ -46,15 +77,27 @@ fn draw_character<T: RenderTarget>(
             character as usize
         };
 
-        (tmp % TILES_PER_LINE, (tmp / TILES_PER_LINE) * 2)
+        (
+            (tmp % TILES_PER_LINE) as isize,
+            (tmp / TILES_PER_LINE) as isize * 2,
+        )
     };
 
-    draw_tile(canvas, texture, source, target)?;
+    let (dx, dy) = match rotation {
+        0 => (0, 1),
+        1 => (-1, 0),
+        2 => (0, -1),
+        3 => (1, 0),
+        _ => unreachable!(),
+    };
+
+    draw_tile(canvas, texture, source, target, rotation)?;
     draw_tile(
         canvas,
         texture,
         (source.0, source.1 + 1),
-        (target.0, target.1 + 1),
+        (target.0 + dx, target.1 + dy),
+        rotation,
     )?;
     Ok(())
 }
@@ -63,10 +106,28 @@ fn draw_string<T: RenderTarget>(
     canvas: &mut Canvas<T>,
     texture: &Texture,
     string: &str,
-    target: (usize, usize),
+    target: (isize, isize),
+    rotation: usize,
 ) -> Result<(), String> {
+    let (dx, dy) = match rotation {
+        0 => (1, 0),
+        1 => (0, 1),
+        2 => (-1, 0),
+        3 => (0, -1),
+        _ => unreachable!(),
+    };
+
     for (index, character) in string.chars().enumerate() {
-        draw_character(canvas, texture, character, (target.0 + index, target.1))?;
+        draw_character(
+            canvas,
+            texture,
+            character,
+            (
+                target.0 + index as isize * dx,
+                target.1 + index as isize * dy,
+            ),
+            rotation,
+        )?;
     }
     Ok(())
 }
@@ -87,7 +148,15 @@ fn main() -> Result<(), String> {
 
     canvas.set_draw_color(pixels::Color::RGB(128, 128, 128));
     canvas.clear();
-    draw_string(&mut canvas, &texture, "Hello, world!", (1, 1))?;
+    draw_string(&mut canvas, &texture, "Hello, world!", (10, 10), 0)?;
+    draw_string(&mut canvas, &texture, "Hello, world!", (10, 10), 1)?;
+    draw_string(&mut canvas, &texture, "Hello, world!", (10, 10), 2)?;
+    draw_string(&mut canvas, &texture, "Hello, world!", (10, 10), 3)?;
+
+    draw_tiles(&mut canvas, &texture, (0, 0), (10, 0), 2, 2)?;
+    draw_tiles(&mut canvas, &texture, (3, 0), (12, 0), 2, 2)?;
+    draw_tiles(&mut canvas, &texture, (6, 0), (14, 0), 2, 2)?;
+
     canvas.present();
 
     let mut events = sdl_context.event_pump()?;
