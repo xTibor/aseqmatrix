@@ -19,6 +19,7 @@ struct MidiPortChangeEvent;
 struct MidiMatrixApp {
     inputs: Vec<(Addr, String)>,
     outputs: Vec<(Addr, String)>,
+    connections: Vec<(Addr, Addr)>,
 }
 
 impl MidiMatrixApp {
@@ -26,6 +27,7 @@ impl MidiMatrixApp {
         MidiMatrixApp {
             inputs: Vec::new(),
             outputs: Vec::new(),
+            connections: Vec::new(),
         }
     }
 
@@ -51,9 +53,15 @@ impl MidiMatrixApp {
             draw_string(canvas, texture, input_name, (x, y_text), 3).unwrap();
         }
 
-        for y in 0..self.outputs.len() {
-            for x in 0..self.inputs.len() {
-                draw_tiles(canvas, texture, (0, 0), (1 + x as isize * 2, 1 + y as isize * 2), 2, 2).unwrap();
+        for (y, (output_addr, _)) in self.outputs.iter().enumerate() {
+            for (x, (input_addr, _)) in self.inputs.iter().enumerate() {
+                let source = if self.connections.contains(&(*input_addr, *output_addr)) {
+                    (3, 0)
+                } else {
+                    (0, 0)
+                };
+
+                draw_tiles(canvas, texture, source, (1 + x as isize * 2, 1 + y as isize * 2), 2, 2).unwrap();
             }
         }
 
@@ -127,6 +135,7 @@ fn main() -> Result<(), String> {
                 let mut app = app.lock().unwrap();
                 app.inputs.clear();
                 app.outputs.clear();
+                app.connections.clear();
 
                 for client in ClientIter::new(&seq) {
                     for port in PortIter::new(&seq, client.get_client()) {
@@ -138,9 +147,9 @@ fn main() -> Result<(), String> {
                             app.outputs.push((port.addr(), port.get_name().unwrap().to_owned()))
                         }
 
-                        //for sub in PortSubscribeIter::new(&seq, port.addr(), QuerySubsType::WRITE) {
-                        //    println!(">>> {:?} -> {:?}", sub.get_sender(), sub.get_dest());
-                        //}
+                        for sub in PortSubscribeIter::new(&seq, port.addr(), QuerySubsType::WRITE) {
+                            app.connections.push((sub.get_sender(), sub.get_dest()))
+                        }
                     }
                 }
             };
@@ -187,14 +196,6 @@ fn main() -> Result<(), String> {
                     ..
                 } => {
                     break 'main;
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::Space),
-                    ..
-                } => {
-                    let mut seq = Seq::open(None, None, false).unwrap();
-                    seq.unsubscribe_port(Addr { client: 14, port: 0 }, Addr { client: 129, port: 0 })
-                        .unwrap();
                 }
                 Event::User { .. } => {
                     // TODO: Check user_event kind
