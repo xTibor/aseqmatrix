@@ -20,6 +20,7 @@ struct MidiMatrixApp {
     inputs: Vec<(Addr, String)>,
     outputs: Vec<(Addr, String)>,
     connections: Vec<(Addr, Addr)>,
+    selection: Option<(usize, usize)>,
 }
 
 impl MidiMatrixApp {
@@ -28,6 +29,7 @@ impl MidiMatrixApp {
             inputs: Vec::new(),
             outputs: Vec::new(),
             connections: Vec::new(),
+            selection: None,
         }
     }
 
@@ -36,32 +38,60 @@ impl MidiMatrixApp {
         canvas.clear();
 
         for (output_index, (_, output_name)) in self.outputs.iter().enumerate() {
-            let y = 1 + output_index as isize * 2;
-            let x_arrow_right = self.inputs.len() as isize * 2 + 1;
-            let x_text = x_arrow_right + 2;
+            let source = if match self.selection {
+                Some((_, selection_y)) => selection_y == output_index,
+                _ => false,
+            } {
+                (5, 0)
+            } else {
+                (2, 0)
+            };
 
-            draw_tiles(canvas, texture, (2, 0), (x_arrow_right, y), 1, 2).unwrap();
+            let y = 1 + output_index as isize * 2;
+
+            let x_arrow_right = self.inputs.len() as isize * 2 + 1;
+            draw_tiles(canvas, texture, source, (x_arrow_right, y), 1, 2).unwrap();
+
+            let x_text = x_arrow_right + 2;
             draw_string(canvas, texture, output_name, (x_text, y), 0).unwrap();
         }
 
         for (input_index, (_, input_name)) in self.inputs.iter().enumerate() {
-            let x = 1 + input_index as isize * 2;
-            let y_arrow_down = self.outputs.len() as isize * 2 + 1;
-            let y_text = y_arrow_down + input_name.len() as isize + 1;
+            let source = if match self.selection {
+                Some((selection_x, _)) => selection_x == input_index,
+                _ => false,
+            } {
+                (3, 3)
+            } else {
+                (0, 3)
+            };
 
-            draw_tiles(canvas, texture, (0, 3), (x, y_arrow_down), 2, 1).unwrap();
+            let x = 1 + input_index as isize * 2;
+
+            let y_arrow_down = self.outputs.len() as isize * 2 + 1;
+            draw_tiles(canvas, texture, source, (x, y_arrow_down), 2, 1).unwrap();
+
+            let y_text = y_arrow_down + input_name.len() as isize + 1;
             draw_string(canvas, texture, input_name, (x, y_text), 3).unwrap();
         }
 
-        for (y, (output_addr, _)) in self.outputs.iter().enumerate() {
-            for (x, (input_addr, _)) in self.inputs.iter().enumerate() {
+        for (output_index, (output_addr, _)) in self.outputs.iter().enumerate() {
+            for (input_index, (input_addr, _)) in self.inputs.iter().enumerate() {
                 let source = if self.connections.contains(&(*input_addr, *output_addr)) {
                     (3, 0)
                 } else {
                     (0, 0)
                 };
 
-                draw_tiles(canvas, texture, source, (1 + x as isize * 2, 1 + y as isize * 2), 2, 2).unwrap();
+                draw_tiles(
+                    canvas,
+                    texture,
+                    source,
+                    (1 + input_index as isize * 2, 1 + output_index as isize * 2),
+                    2,
+                    2,
+                )
+                .unwrap();
             }
         }
 
@@ -197,6 +227,52 @@ fn main() -> Result<(), String> {
                 } => {
                     break 'main;
                 }
+                Event::MouseMotion { x, y, .. } => {
+                    let mut app = app.lock().unwrap();
+                    let last_selection = app.selection;
+
+                    // TODO: rounding problems at the top/left edges
+                    let (selection_x, selection_y) = (
+                        ((x - TILE_SIZE as i32) / TILE_SIZE as i32) / 2,
+                        ((y - TILE_SIZE as i32) / TILE_SIZE as i32) / 2
+                    );
+
+                    app.selection = if (selection_x >= 0)
+                        && (selection_x < app.inputs.len() as i32)
+                        && (selection_y >= 0)
+                        && (selection_y < app.outputs.len() as i32)
+                    {
+                        Some((selection_x as usize, selection_y as usize))
+                    } else {
+                        None
+                    };
+
+                    println!("{:?}", app.selection);
+
+                    if app.selection != last_selection {
+                        app.render(&mut canvas, &texture);
+                    }
+                }
+                Event::MouseButtonUp { .. } => {
+                    let mut app = app.lock().unwrap();
+                    if let Some((selection_x, selection_y)) = app.selection {
+                        // assert!(selection in bounds)
+                        let input_addr = app.inputs[selection_x].0;
+                        let output_addr = app.outputs[selection_y].0;
+
+                        let mut seq = Seq::open(None, None, false).unwrap();
+                        if app.connections.contains(&(input_addr, output_addr)) {
+                            seq.unsubscribe_port(input_addr, output_addr).unwrap();
+                        } else {
+                            let mut sub = PortSubscribe::empty().unwrap();
+                            sub.set_sender(input_addr);
+                            sub.set_dest(output_addr);
+                            seq.subscribe_port(&sub).unwrap();
+                        }
+
+                    }
+                }
+
                 Event::User { .. } => {
                     // TODO: Check user_event kind
                     let app = app.lock().unwrap();
