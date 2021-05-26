@@ -7,7 +7,10 @@ use sdl2::keyboard::Keycode;
 use sdl2::pixels;
 use sdl2::rect::Rect;
 use sdl2::render::{Canvas, RenderTarget, Texture};
-use std::ffi::{CStr, CString};
+use std::ffi::{CString};
+use std::thread;
+
+struct MidiPortChangeEvent;
 
 const TILE_SIZE: usize = 12;
 const TILES_PER_LINE: usize = 16;
@@ -129,71 +132,6 @@ fn draw_string<T: RenderTarget>(
 }
 
 fn main() -> Result<(), String> {
-    let mut seq = Seq::open(None, None, false).unwrap();
-
-    let midi_name = CString::new("MIDI Matrix").unwrap();
-    seq.set_client_name(&midi_name).unwrap();
-
-    let client_port = {
-        let mut port_info = PortInfo::empty().unwrap();
-        port_info.set_capability(PortCap::WRITE);
-        port_info.set_type(PortType::MIDI_GENERIC | PortType::APPLICATION);
-        port_info.set_name(&midi_name);
-        seq.create_port(&port_info).unwrap();
-        port_info.addr()
-    };
-
-    {
-        let mut sub = PortSubscribe::empty().unwrap();
-        sub.set_sender(Addr::system_announce());
-        sub.set_dest(client_port);
-        seq.subscribe_port(&sub).unwrap();
-    }
-
-    for client in ClientIter::new(&seq) {
-        for port in PortIter::new(&seq, client.get_client()) {
-            println!("{:?}", port);
-            println!("{:?}, {:?}", port.get_capability(), port.get_type());
-
-            if port.get_capability().contains(PortCap::SUBS_READ) {
-                println!("input")
-            }
-
-            if port.get_capability().contains(PortCap::SUBS_WRITE) {
-                println!("output")
-            }
-
-            for sub in PortSubscribeIter::new(&seq, port.addr(), QuerySubsType::WRITE) {
-                println!(">>> {:?} -> {:?}", sub.get_sender(), sub.get_dest());
-            }
-            println!();
-        }
-    }
-
-    // Unsub
-    //seq.unsubscribe_port(Addr { client: 14, port: 0 }, Addr { client: 129, port: 0 })
-    //    .map_err(|e| e.to_string())?;
-
-    // Sub
-    //let mut sub = PortSubscribe::empty().map_err(|e| e.to_string())?;
-    //sub.set_sender(Addr { client: 14, port: 0 });
-    //sub.set_dest(Addr { client: 129, port: 0 });
-    //seq.subscribe_port(&sub).map_err(|e| e.to_string())?;
-
-    let mut fds = Vec::<alsa::poll::pollfd>::new();
-    fds.append(&mut (&seq, Some(alsa::Direction::Capture)).get().unwrap());
-
-    let mut seq_input = seq.input();
-    loop {
-        if seq_input.event_input_pending(true).unwrap() > 0 {
-            let event = seq_input.event_input().unwrap();
-            println!("{:?}", event);
-            continue;
-        }
-        println!("poll");
-        alsa::poll::poll(&mut fds, -1).unwrap();
-    }
-
     let sdl_context = sdl2::init()?;
     let video_subsys = sdl_context.video()?;
     let window = video_subsys
@@ -275,7 +213,79 @@ fn main() -> Result<(), String> {
 
     canvas.present();
 
+    let mut sdl_event = sdl_context.event()?;
     let mut events = sdl_context.event_pump()?;
+
+    sdl_event.register_custom_event::<MidiPortChangeEvent>().unwrap();
+    sdl_event.push_custom_event(MidiPortChangeEvent).unwrap();
+    let tx = sdl_event.event_sender();
+
+    thread::spawn(move || {
+        let mut seq = Seq::open(None, None, false).unwrap();
+
+        let midi_name = CString::new("MIDI Matrix").unwrap();
+        seq.set_client_name(&midi_name).unwrap();
+
+        let client_port = {
+            let mut port_info = PortInfo::empty().unwrap();
+            port_info.set_capability(PortCap::WRITE);
+            port_info.set_type(PortType::MIDI_GENERIC | PortType::APPLICATION);
+            port_info.set_name(&midi_name);
+            seq.create_port(&port_info).unwrap();
+            port_info.addr()
+        };
+
+        {
+            let mut sub = PortSubscribe::empty().unwrap();
+            sub.set_sender(Addr::system_announce());
+            sub.set_dest(client_port);
+            seq.subscribe_port(&sub).unwrap();
+        }
+
+        for client in ClientIter::new(&seq) {
+            for port in PortIter::new(&seq, client.get_client()) {
+                println!("{:?}", port);
+                println!("{:?}, {:?}", port.get_capability(), port.get_type());
+
+                if port.get_capability().contains(PortCap::SUBS_READ) {
+                    println!("input")
+                }
+
+                if port.get_capability().contains(PortCap::SUBS_WRITE) {
+                    println!("output")
+                }
+
+                for sub in PortSubscribeIter::new(&seq, port.addr(), QuerySubsType::WRITE) {
+                    println!(">>> {:?} -> {:?}", sub.get_sender(), sub.get_dest());
+                }
+                println!();
+            }
+        }
+
+        let mut fds = Vec::<alsa::poll::pollfd>::new();
+        fds.append(&mut (&seq, Some(alsa::Direction::Capture)).get().unwrap());
+
+        let mut seq_input = seq.input();
+        loop {
+            if seq_input.event_input_pending(true).unwrap() > 0 {
+                let event = seq_input.event_input().unwrap();
+                match event.get_type() {
+                    alsa::seq::EventType::PortChange |
+                    alsa::seq::EventType::PortExit |
+                    alsa::seq::EventType::PortStart |
+                    alsa::seq::EventType::PortSubscribed |
+                    alsa::seq::EventType::PortUnsubscribed => {
+                        tx.push_custom_event(MidiPortChangeEvent).unwrap();
+                    },
+                    _ => {}
+                }
+                println!("{:?}", event);
+                continue;
+            }
+            println!("poll");
+            alsa::poll::poll(&mut fds, -1).unwrap();
+        }
+    });
 
     'main: loop {
         for event in events.wait_iter() {
@@ -285,7 +295,16 @@ fn main() -> Result<(), String> {
                 | Event::KeyDown {
                     keycode: Some(Keycode::Escape),
                     ..
-                } => break 'main,
+                } => {
+                    break 'main;
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::Space),
+                    ..
+                } => {
+                    let mut seq = Seq::open(None, None, false).unwrap();
+                    seq.unsubscribe_port(Addr { client: 14, port: 0 }, Addr { client: 129, port: 0 }).unwrap();
+                }
                 _ => {}
             }
         }
@@ -293,6 +312,16 @@ fn main() -> Result<(), String> {
 
     Ok(())
 }
+
+// Unsub
+//seq.unsubscribe_port(Addr { client: 14, port: 0 }, Addr { client: 129, port: 0 })
+//    .map_err(|e| e.to_string())?;
+
+// Sub
+//let mut sub = PortSubscribe::empty().map_err(|e| e.to_string())?;
+//sub.set_sender(Addr { client: 14, port: 0 });
+//sub.set_dest(Addr { client: 129, port: 0 });
+//seq.subscribe_port(&sub).map_err(|e| e.to_string())?;
 
 /*
 ClientChange
