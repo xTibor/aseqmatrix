@@ -5,133 +5,76 @@ use sdl2::event::Event;
 use sdl2::image::LoadTexture;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels;
-use sdl2::rect::Rect;
-use sdl2::render::{Canvas, RenderTarget, Texture};
-use std::ffi::{CString};
+use sdl2::render::{Canvas, Texture};
+use sdl2::video::Window;
+use std::ffi::CString;
+use std::sync::{Arc, Mutex};
 use std::thread;
+
+mod graphics;
+use graphics::{draw_string, draw_tiles, TILE_SIZE};
 
 struct MidiPortChangeEvent;
 
-const TILE_SIZE: usize = 12;
-const TILES_PER_LINE: usize = 16;
-
-fn draw_tile<T: RenderTarget>(
-    canvas: &mut Canvas<T>,
-    texture: &Texture,
-    source: (isize, isize),
-    target: (isize, isize),
-    rotation: usize,
-) -> Result<(), String> {
-    let source_rect = Rect::new(
-        source.0 as i32 * TILE_SIZE as i32,
-        source.1 as i32 * TILE_SIZE as i32,
-        TILE_SIZE as u32,
-        TILE_SIZE as u32,
-    );
-    let target_rect = Rect::new(
-        target.0 as i32 * TILE_SIZE as i32,
-        target.1 as i32 * TILE_SIZE as i32,
-        TILE_SIZE as u32,
-        TILE_SIZE as u32,
-    );
-    canvas.copy_ex(
-        &texture,
-        source_rect,
-        target_rect,
-        90.0 * rotation as f64,
-        None,
-        false,
-        false,
-    )?;
-    Ok(())
+struct MidiMatrixApp {
+    inputs: Vec<(Addr, String)>,
+    outputs: Vec<(Addr, String)>,
 }
 
-fn draw_tiles<T: RenderTarget>(
-    canvas: &mut Canvas<T>,
-    texture: &Texture,
-    source: (isize, isize),
-    target: (isize, isize),
-    width: usize,
-    height: usize,
-) -> Result<(), String> {
-    for dy in 0..height {
-        for dx in 0..width {
-            draw_tile(
-                canvas,
-                texture,
-                (source.0 + dx as isize, source.1 + dy as isize),
-                (target.0 + dx as isize, target.1 + dy as isize),
-                0,
-            )?;
+impl MidiMatrixApp {
+    fn new() -> MidiMatrixApp {
+        MidiMatrixApp {
+            inputs: Vec::new(),
+            outputs: Vec::new(),
         }
     }
-    Ok(())
-}
 
-fn draw_character<T: RenderTarget>(
-    canvas: &mut Canvas<T>,
-    texture: &Texture,
-    character: char,
-    target: (isize, isize),
-    rotation: usize,
-) -> Result<(), String> {
-    let source = {
-        let tmp = if (character <= '\u{001F}') || (character >= '\u{0080}') {
-            0x7F
-        } else {
-            character as usize
-        };
+    fn render(&self, canvas: &mut Canvas<Window>, texture: &Texture) {
+        canvas.set_draw_color(pixels::Color::RGB(128, 128, 128));
+        canvas.clear();
 
-        ((tmp % TILES_PER_LINE) as isize, (tmp / TILES_PER_LINE) as isize * 2)
-    };
+        for (output_index, (_, output_name)) in self.outputs.iter().enumerate() {
+            let y = 1 + output_index as isize * 2;
+            let x_arrow_right = self.inputs.len() as isize * 2 + 1;
+            let x_text = x_arrow_right + 2;
 
-    let (dx, dy) = match rotation {
-        0 => (0, 1),
-        1 => (-1, 0),
-        2 => (0, -1),
-        3 => (1, 0),
-        _ => unreachable!(),
-    };
+            draw_tiles(canvas, texture, (2, 0), (x_arrow_right, y), 1, 2).unwrap();
+            draw_string(canvas, texture, output_name, (x_text, y), 0).unwrap();
+        }
 
-    draw_tile(canvas, texture, source, target, rotation)?;
-    draw_tile(
-        canvas,
-        texture,
-        (source.0, source.1 + 1),
-        (target.0 + dx, target.1 + dy),
-        rotation,
-    )?;
-    Ok(())
-}
+        for (input_index, (_, input_name)) in self.inputs.iter().enumerate() {
+            let x = 1 + input_index as isize * 2;
+            let y_arrow_down = self.outputs.len() as isize * 2 + 1;
+            let y_text = y_arrow_down + input_name.len() as isize + 1;
 
-fn draw_string<T: RenderTarget>(
-    canvas: &mut Canvas<T>,
-    texture: &Texture,
-    string: &str,
-    target: (isize, isize),
-    rotation: usize,
-) -> Result<(), String> {
-    let (dx, dy) = match rotation {
-        0 => (1, 0),
-        1 => (0, 1),
-        2 => (-1, 0),
-        3 => (0, -1),
-        _ => unreachable!(),
-    };
+            draw_tiles(canvas, texture, (0, 3), (x, y_arrow_down), 2, 1).unwrap();
+            draw_string(canvas, texture, input_name, (x, y_text), 3).unwrap();
+        }
 
-    for (index, character) in string.chars().enumerate() {
-        draw_character(
-            canvas,
-            texture,
-            character,
-            (target.0 + index as isize * dx, target.1 + index as isize * dy),
-            rotation,
-        )?;
+        for y in 0..self.outputs.len() {
+            for x in 0..self.inputs.len() {
+                draw_tiles(canvas, texture, (0, 0), (1 + x as isize * 2, 1 + y as isize * 2), 2, 2).unwrap();
+            }
+        }
+
+        canvas.present();
     }
-    Ok(())
+
+    fn resize_window(&self, canvas: &mut Canvas<Window>) {
+        let window_width =
+            (self.inputs.len() * 2 + self.outputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) + 4)
+                * TILE_SIZE;
+        let window_height =
+            (self.outputs.len() * 2 + self.inputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) + 4)
+                * TILE_SIZE;
+        let window = canvas.window_mut();
+        window.set_size(window_width as u32, window_height as u32).unwrap();
+    }
 }
 
 fn main() -> Result<(), String> {
+    let mut app = Arc::new(Mutex::new(MidiMatrixApp::new()));
+
     let sdl_context = sdl2::init()?;
     let video_subsys = sdl_context.video()?;
     let window = video_subsys
@@ -145,148 +88,95 @@ fn main() -> Result<(), String> {
     let texture_creator = canvas.texture_creator();
     let texture = texture_creator.load_texture("assets/tileset.png")?;
 
-    canvas.set_draw_color(pixels::Color::RGB(128, 128, 128));
-    canvas.clear();
-
-    let inputs = [
-        "Timer",
-        "Announce",
-        "Midi Through Port-0",
-        "VirMIDI 3-0",
-        "VirMIDI 3-1",
-        "VirMIDI 3-2",
-        "VirMIDI 3-3",
-    ];
-    let outputs = [
-        "Midi Through Port-0",
-        "VirMIDI 3-0",
-        "VirMIDI 3-1",
-        "VirMIDI 3-2",
-        "VirMIDI 3-3",
-        "TiMidity port 0",
-        "TiMidity port 1",
-        "TiMidity port 2",
-        "TiMidity port 3",
-        "BinaryPiano2",
-        "aseqdump",
-    ];
-
     {
-        let window_width = (inputs.len() * 2 + outputs.iter().map(|s| s.len()).max().unwrap_or(0) + 4) * TILE_SIZE;
-        let window_height = (outputs.len() * 2 + inputs.iter().map(|s| s.len()).max().unwrap_or(0) + 4) * TILE_SIZE;
-        let window = canvas.window_mut();
-        window
-            .set_size(window_width as u32, window_height as u32)
-            .map_err(|e| e.to_string())?;
+        let app = app.lock().unwrap();
+        app.resize_window(&mut canvas);
+        app.render(&mut canvas, &texture);
     }
-
-    for (output_index, output) in outputs.iter().enumerate() {
-        let y = 1 + output_index as isize * 2;
-        let x_arrow_right = inputs.len() as isize * 2 + 1;
-        let x_text = x_arrow_right + 2;
-
-        draw_tiles(&mut canvas, &texture, (2, 0), (x_arrow_right, y), 1, 2)?;
-        draw_string(&mut canvas, &texture, output, (x_text, y), 0)?;
-    }
-
-    for (input_index, input) in inputs.iter().enumerate() {
-        let x = 1 + input_index as isize * 2;
-        let y_arrow_down = outputs.len() as isize * 2 + 1;
-        let y_text = y_arrow_down + input.len() as isize + 1;
-
-        draw_tiles(&mut canvas, &texture, (0, 3), (x, y_arrow_down), 2, 1)?;
-        draw_string(&mut canvas, &texture, input, (x, y_text), 3)?;
-    }
-
-    for y in 0..outputs.len() {
-        for x in 0..inputs.len() {
-            draw_tiles(
-                &mut canvas,
-                &texture,
-                (0, 0),
-                (1 + x as isize * 2, 1 + y as isize * 2),
-                2,
-                2,
-            )?;
-        }
-    }
-
-    canvas.present();
 
     let mut sdl_event = sdl_context.event()?;
-    let mut events = sdl_context.event_pump()?;
-
     sdl_event.register_custom_event::<MidiPortChangeEvent>().unwrap();
     sdl_event.push_custom_event(MidiPortChangeEvent).unwrap();
     let tx = sdl_event.event_sender();
 
-    thread::spawn(move || {
-        let mut seq = Seq::open(None, None, false).unwrap();
+    {
+        let app = Arc::clone(&app);
+        thread::spawn(move || {
+            let mut seq = Seq::open(None, None, false).unwrap();
 
-        let midi_name = CString::new("MIDI Matrix").unwrap();
-        seq.set_client_name(&midi_name).unwrap();
+            let midi_name = CString::new("MIDI Matrix").unwrap();
+            seq.set_client_name(&midi_name).unwrap();
 
-        let client_port = {
-            let mut port_info = PortInfo::empty().unwrap();
-            port_info.set_capability(PortCap::WRITE);
-            port_info.set_type(PortType::MIDI_GENERIC | PortType::APPLICATION);
-            port_info.set_name(&midi_name);
-            seq.create_port(&port_info).unwrap();
-            port_info.addr()
-        };
+            let client_port = {
+                let mut port_info = PortInfo::empty().unwrap();
+                port_info.set_capability(PortCap::WRITE);
+                port_info.set_type(PortType::MIDI_GENERIC | PortType::APPLICATION);
+                port_info.set_name(&midi_name);
+                seq.create_port(&port_info).unwrap();
+                port_info.addr()
+            };
 
-        {
-            let mut sub = PortSubscribe::empty().unwrap();
-            sub.set_sender(Addr::system_announce());
-            sub.set_dest(client_port);
-            seq.subscribe_port(&sub).unwrap();
-        }
-
-        for client in ClientIter::new(&seq) {
-            for port in PortIter::new(&seq, client.get_client()) {
-                println!("{:?}", port);
-                println!("{:?}, {:?}", port.get_capability(), port.get_type());
-
-                if port.get_capability().contains(PortCap::SUBS_READ) {
-                    println!("input")
-                }
-
-                if port.get_capability().contains(PortCap::SUBS_WRITE) {
-                    println!("output")
-                }
-
-                for sub in PortSubscribeIter::new(&seq, port.addr(), QuerySubsType::WRITE) {
-                    println!(">>> {:?} -> {:?}", sub.get_sender(), sub.get_dest());
-                }
-                println!();
+            {
+                let mut sub = PortSubscribe::empty().unwrap();
+                sub.set_sender(Addr::system_announce());
+                sub.set_dest(client_port);
+                seq.subscribe_port(&sub).unwrap();
             }
-        }
 
-        let mut fds = Vec::<alsa::poll::pollfd>::new();
-        fds.append(&mut (&seq, Some(alsa::Direction::Capture)).get().unwrap());
+            let refresh_midi_endpoints = || {
+                let mut app = app.lock().unwrap();
+                app.inputs.clear();
+                app.outputs.clear();
 
-        let mut seq_input = seq.input();
-        loop {
-            if seq_input.event_input_pending(true).unwrap() > 0 {
-                let event = seq_input.event_input().unwrap();
-                match event.get_type() {
-                    alsa::seq::EventType::PortChange |
-                    alsa::seq::EventType::PortExit |
-                    alsa::seq::EventType::PortStart |
-                    alsa::seq::EventType::PortSubscribed |
-                    alsa::seq::EventType::PortUnsubscribed => {
-                        tx.push_custom_event(MidiPortChangeEvent).unwrap();
-                    },
-                    _ => {}
+                for client in ClientIter::new(&seq) {
+                    for port in PortIter::new(&seq, client.get_client()) {
+                        if port.get_capability().contains(PortCap::SUBS_READ) {
+                            app.inputs.push((port.addr(), port.get_name().unwrap().to_owned()))
+                        }
+
+                        if port.get_capability().contains(PortCap::SUBS_WRITE) {
+                            app.outputs.push((port.addr(), port.get_name().unwrap().to_owned()))
+                        }
+
+                        //for sub in PortSubscribeIter::new(&seq, port.addr(), QuerySubsType::WRITE) {
+                        //    println!(">>> {:?} -> {:?}", sub.get_sender(), sub.get_dest());
+                        //}
+                    }
                 }
-                println!("{:?}", event);
-                continue;
-            }
-            println!("poll");
-            alsa::poll::poll(&mut fds, -1).unwrap();
-        }
-    });
+            };
 
+            refresh_midi_endpoints();
+
+            let mut fds = Vec::<alsa::poll::pollfd>::new();
+            fds.append(&mut (&seq, Some(alsa::Direction::Capture)).get().unwrap());
+
+            let mut seq_input = seq.input();
+            loop {
+                if seq_input.event_input_pending(true).unwrap() > 0 {
+                    let event = seq_input.event_input().unwrap();
+
+                    // TODO: filter events from this client
+                    match event.get_type() {
+                        alsa::seq::EventType::PortChange
+                        | alsa::seq::EventType::PortExit
+                        | alsa::seq::EventType::PortStart
+                        | alsa::seq::EventType::PortSubscribed
+                        | alsa::seq::EventType::PortUnsubscribed => {
+                            refresh_midi_endpoints();
+                            tx.push_custom_event(MidiPortChangeEvent).unwrap();
+                        }
+                        _ => {}
+                    }
+                    println!("{:?}", event);
+                    continue;
+                }
+                println!("poll");
+                alsa::poll::poll(&mut fds, -1).unwrap();
+            }
+        });
+    }
+
+    let mut events = sdl_context.event_pump()?;
     'main: loop {
         for event in events.wait_iter() {
             println!("{:?}", event);
@@ -303,7 +193,14 @@ fn main() -> Result<(), String> {
                     ..
                 } => {
                     let mut seq = Seq::open(None, None, false).unwrap();
-                    seq.unsubscribe_port(Addr { client: 14, port: 0 }, Addr { client: 129, port: 0 }).unwrap();
+                    seq.unsubscribe_port(Addr { client: 14, port: 0 }, Addr { client: 129, port: 0 })
+                        .unwrap();
+                }
+                Event::User { .. } => {
+                    // TODO: Check user_event kind
+                    let app = app.lock().unwrap();
+                    app.resize_window(&mut canvas);
+                    app.render(&mut canvas, &texture);
                 }
                 _ => {}
             }
@@ -322,14 +219,3 @@ fn main() -> Result<(), String> {
 //sub.set_sender(Addr { client: 14, port: 0 });
 //sub.set_dest(Addr { client: 129, port: 0 });
 //seq.subscribe_port(&sub).map_err(|e| e.to_string())?;
-
-/*
-ClientChange
-ClientExit
-ClientStart
-PortChange
-PortExit
-PortStart
-PortSubscribed
-PortUnsubscribed
-*/
