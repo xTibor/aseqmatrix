@@ -5,5 +5,5 @@ authors = ["Nagy Tibor <xnagytibor@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
-alsa = "0.5.0"
+alsa = { git = "https://github.com/xtibor/alsa-rs", branch = "mut" }
 sdl2 = { version = "0.34", features = ["gfx", "image"] }

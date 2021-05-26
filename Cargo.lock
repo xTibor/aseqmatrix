@@ -5,8 +5,7 @@ version = 3
 [[package]]
 name = "alsa"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75c4da790adcb2ce5e758c064b4f3ec17a30349f9961d3e5e6c9688b052a9e18"
+source = "git+https://github.com/xtibor/alsa-rs?branch=mut#5a6dcbb513eb4f61499050b6797762f010fc0eda"
 dependencies = [
  "alsa-sys",
  "bitflags",
