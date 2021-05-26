@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 mod graphics;
-use graphics::{draw_string, draw_tiles, TILE_SIZE};
+use graphics::{TILE_SIZE, draw_string, draw_tiled_background, draw_tiles};
 
 struct MidiPortChangeEvent;
 
@@ -33,9 +33,11 @@ impl MidiMatrixApp {
         }
     }
 
-    fn render(&self, canvas: &mut Canvas<Window>, texture: &Texture) {
+    fn render(&self, canvas: &mut Canvas<Window>, texture_foreground: &Texture, texture_background: &Texture) {
         canvas.set_draw_color(pixels::Color::RGB(128, 128, 128));
         canvas.clear();
+
+        draw_tiled_background(canvas, texture_background).unwrap();
 
         for (output_index, (_, output_name)) in self.outputs.iter().enumerate() {
             let source = if match self.selection {
@@ -50,10 +52,10 @@ impl MidiMatrixApp {
             let y = 1 + output_index as isize * 2;
 
             let x_arrow_right = self.inputs.len() as isize * 2 + 1;
-            draw_tiles(canvas, texture, source, (x_arrow_right, y), 1, 2).unwrap();
+            draw_tiles(canvas, texture_foreground, source, (x_arrow_right, y), 1, 2).unwrap();
 
             let x_text = x_arrow_right + 2;
-            draw_string(canvas, texture, output_name, (x_text, y), 0).unwrap();
+            draw_string(canvas, texture_foreground, output_name, (x_text, y), 0).unwrap();
         }
 
         for (input_index, (_, input_name)) in self.inputs.iter().enumerate() {
@@ -69,10 +71,10 @@ impl MidiMatrixApp {
             let x = 1 + input_index as isize * 2;
 
             let y_arrow_down = self.outputs.len() as isize * 2 + 1;
-            draw_tiles(canvas, texture, source, (x, y_arrow_down), 2, 1).unwrap();
+            draw_tiles(canvas, texture_foreground, source, (x, y_arrow_down), 2, 1).unwrap();
 
             let y_text = y_arrow_down + input_name.len() as isize + 1;
-            draw_string(canvas, texture, input_name, (x, y_text), 3).unwrap();
+            draw_string(canvas, texture_foreground, input_name, (x, y_text), 3).unwrap();
         }
 
         for (output_index, (output_addr, _)) in self.outputs.iter().enumerate() {
@@ -85,7 +87,7 @@ impl MidiMatrixApp {
 
                 draw_tiles(
                     canvas,
-                    texture,
+                    texture_foreground,
                     source,
                     (1 + input_index as isize * 2, 1 + output_index as isize * 2),
                     2,
@@ -124,12 +126,13 @@ fn main() -> Result<(), String> {
 
     let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
     let texture_creator = canvas.texture_creator();
-    let texture = texture_creator.load_texture("assets/tileset.png")?;
+    let texture_foreground = texture_creator.load_texture("skins/amber-foreground.png")?;
+    let texture_background = texture_creator.load_texture("skins/amber-background.png")?;
 
     {
         let app = app.lock().unwrap();
         app.resize_window(&mut canvas);
-        app.render(&mut canvas, &texture);
+        app.render(&mut canvas, &texture_foreground, &texture_background);
     }
 
     let mut sdl_event = sdl_context.event()?;
@@ -250,7 +253,7 @@ fn main() -> Result<(), String> {
                     println!("{:?}", app.selection);
 
                     if app.selection != last_selection {
-                        app.render(&mut canvas, &texture);
+                        app.render(&mut canvas, &texture_foreground, &texture_background);
                     }
                 }
                 Event::MouseButtonUp { .. } => {
@@ -277,7 +280,7 @@ fn main() -> Result<(), String> {
                     // TODO: Check user_event kind
                     let app = app.lock().unwrap();
                     app.resize_window(&mut canvas);
-                    app.render(&mut canvas, &texture);
+                    app.render(&mut canvas, &texture_foreground, &texture_background);
                 }
                 _ => {}
             }
