@@ -1,11 +1,10 @@
 use alsa::seq::{Addr, ClientIter, PortInfo, PortIter, PortSubscribe, PortSubscribeIter, QuerySubsType, Seq};
 use alsa::seq::{PortCap, PortType};
 use alsa::PollDescriptors;
-use sdl2::event::{Event, WindowEvent};
-use sdl2::image::LoadTexture;
+use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels;
-use sdl2::render::{Canvas, Texture};
+use sdl2::render::Canvas;
 use sdl2::video::Window;
 use std::ffi::CString;
 use std::sync::{Arc, Mutex};
@@ -207,7 +206,7 @@ impl MidiMatrixApp {
 }
 
 fn main() -> Result<(), String> {
-    let mut app = Arc::new(Mutex::new(MidiMatrixApp::new()));
+    let app = Arc::new(Mutex::new(MidiMatrixApp::new()));
 
     let sdl_context = sdl2::init()?;
     let video_subsys = sdl_context.video()?;
@@ -231,7 +230,7 @@ fn main() -> Result<(), String> {
         app.render(&mut canvas, &skin);
     }
 
-    let mut sdl_event = sdl_context.event()?;
+    let sdl_event = sdl_context.event()?;
     sdl_event.register_custom_event::<MidiPortChangeEvent>().unwrap();
     sdl_event.push_custom_event(MidiPortChangeEvent).unwrap();
     let tx = sdl_event.event_sender();
@@ -338,13 +337,13 @@ fn main() -> Result<(), String> {
                     }
                 }
                 Event::MouseButtonUp { .. } => {
-                    let mut app = app.lock().unwrap();
+                    let app = app.lock().unwrap();
                     if let Some((selection_x, selection_y)) = app.selection {
                         // assert!(selection in bounds)
                         let input_addr = app.inputs[selection_x].0;
                         let output_addr = app.outputs[selection_y].0;
 
-                        let mut seq = Seq::open(None, None, false).unwrap();
+                        let seq = Seq::open(None, None, false).unwrap();
                         if app.connections.contains(&(input_addr, output_addr)) {
                             seq.unsubscribe_port(input_addr, output_addr).unwrap();
                         } else {
