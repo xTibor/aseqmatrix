@@ -28,23 +28,23 @@ impl<'a> Skin<'a> {
         let background_texture = texture_creator.load_texture(format!("skins/{}/background.png", skin_name))?;
 
         let controls_texture = texture_creator.load_texture(format!("skins/{}/controls.png", skin_name))?;
-        let controls_tiles_per_dimension = TileDimension(16, 16);
+        let controls_tiles_per_dimension = TileDimension { width: 16, height: 16 };
         let controls_tile_size = {
             let query = controls_texture.query();
-            PixelDimension(
-                query.width as usize / controls_tiles_per_dimension.0,
-                query.height as usize / controls_tiles_per_dimension.1,
-            )
+            PixelDimension {
+                width: query.width as usize / controls_tiles_per_dimension.width,
+                height: query.height as usize / controls_tiles_per_dimension.height,
+            }
         };
 
         let font_texture = texture_creator.load_texture(format!("skins/{}/font.png", skin_name))?;
-        let font_tiles_per_dimension = TileDimension(16, 8);
+        let font_tiles_per_dimension = TileDimension { width: 16, height: 8 };
         let font_tile_size = {
             let query = font_texture.query();
-            PixelDimension(
-                query.width as usize / font_tiles_per_dimension.0,
-                query.height as usize / font_tiles_per_dimension.1,
-            )
+            PixelDimension {
+                width: query.width as usize / font_tiles_per_dimension.width,
+                height: query.height as usize / font_tiles_per_dimension.height,
+            }
         };
 
         let window_margin = 12;

@@ -3,38 +3,56 @@ use sdl2::render::{Canvas, Texture};
 use sdl2::video::Window;
 
 #[derive(Copy, Clone, Debug)]
-pub struct PixelPosition(pub isize, pub isize);
+pub struct PixelPosition {
+    pub x: isize,
+    pub y: isize,
+}
 
 #[derive(Copy, Clone, Debug)]
-pub struct PixelDimension(pub usize, pub usize);
+pub struct PixelDimension {
+    pub width: usize,
+    pub height: usize,
+}
 
 #[derive(Copy, Clone, Debug)]
-pub struct TilePosition(pub usize, pub usize);
+pub struct TilePosition {
+    pub x: usize,
+    pub y: usize,
+}
 
 #[derive(Copy, Clone, Debug)]
-pub struct TileDimension(pub usize, pub usize);
+pub struct TileDimension {
+    pub width: usize,
+    pub height: usize,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct TileRect {
+    pub x: usize,
+    pub y: usize,
+    pub width: usize,
+    pub height: usize,
+}
 
 pub fn draw_tiles(
     canvas: &mut Canvas<Window>,
     texture: &Texture,
     tile_size: PixelDimension,
-    source: TilePosition,
+    source: TileRect,
     target: PixelPosition,
-    width: usize,
-    height: usize,
 ) -> Result<(), String> {
     let source_rect = Rect::new(
-        source.0 as i32 * tile_size.0 as i32,
-        source.1 as i32 * tile_size.1 as i32,
-        width as u32 * tile_size.0 as u32,
-        height as u32 * tile_size.1 as u32,
+        source.x as i32 * tile_size.width as i32,
+        source.y as i32 * tile_size.height as i32,
+        source.width as u32 * tile_size.width as u32,
+        source.height as u32 * tile_size.height as u32,
     );
 
     let target_rect = Rect::new(
-        target.0 as i32,
-        target.1 as i32,
-        width as u32 * tile_size.0 as u32,
-        height as u32 * tile_size.1 as u32,
+        target.x as i32,
+        target.y as i32,
+        source.width as u32 * tile_size.width as u32,
+        source.height as u32 * tile_size.height as u32,
     );
 
     canvas.copy(&texture, source_rect, target_rect)?;
@@ -57,16 +75,24 @@ pub fn draw_character(
         } else {
             character as usize
         };
-        let tile_position = TilePosition(tile_index % tiles_per_dimension.0, tile_index / tiles_per_dimension.0);
+        let tile_position = TilePosition {
+            x: tile_index % tiles_per_dimension.width,
+            y: tile_index / tiles_per_dimension.width,
+        };
         Rect::new(
-            tile_position.0 as i32 * tile_size.0 as i32,
-            tile_position.1 as i32 * tile_size.1 as i32,
-            tile_size.0 as u32,
-            tile_size.1 as u32,
+            tile_position.x as i32 * tile_size.width as i32,
+            tile_position.y as i32 * tile_size.height as i32,
+            tile_size.width as u32,
+            tile_size.height as u32,
         )
     };
 
-    let target_rect = Rect::new(target.0 as i32, target.1 as i32, tile_size.0 as u32, tile_size.1 as u32);
+    let target_rect = Rect::new(
+        target.x as i32,
+        target.y as i32,
+        tile_size.width as u32,
+        tile_size.height as u32,
+    );
 
     canvas.copy_ex(
         &texture,
@@ -91,10 +117,10 @@ pub fn draw_string(
     rotation: usize,
 ) -> Result<(), String> {
     let (dx, dy) = match rotation {
-        0 => (tile_size.0 as isize, 0),
-        1 => (0, tile_size.0 as isize),
-        2 => (-(tile_size.0 as isize), 0),
-        3 => (0, -(tile_size.0 as isize)),
+        0 => (tile_size.width as isize, 0),
+        1 => (0, tile_size.width as isize),
+        2 => (-(tile_size.width as isize), 0),
+        3 => (0, -(tile_size.width as isize)),
         _ => unreachable!(),
     };
 
@@ -105,7 +131,10 @@ pub fn draw_string(
             tile_size,
             tiles_per_dimension,
             character,
-            PixelPosition(target.0 + index as isize * dx, target.1 + index as isize * dy),
+            PixelPosition {
+                x: target.x + index as isize * dx,
+                y: target.y + index as isize * dy,
+            },
             rotation,
         )?;
     }

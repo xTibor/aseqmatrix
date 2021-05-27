@@ -3,7 +3,6 @@ use alsa::seq::{PortCap, PortType};
 use alsa::PollDescriptors;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::pixels;
 use sdl2::render::Canvas;
 use sdl2::video::Window;
 use std::ffi::CString;
@@ -11,7 +10,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 mod graphics;
-use graphics::{draw_string, draw_tiled_background, draw_tiles, PixelDimension, PixelPosition, TilePosition};
+use graphics::{draw_string, draw_tiled_background, draw_tiles, PixelDimension, PixelPosition, TileRect};
 
 mod skin;
 use skin::Skin;
@@ -36,34 +35,47 @@ impl MidiMatrixApp {
     }
 
     fn render(&self, canvas: &mut Canvas<Window>, skin: &Skin) -> Result<(), String> {
-        canvas.set_draw_color(pixels::Color::RGB(128, 128, 128));
-        canvas.clear();
-
         draw_tiled_background(canvas, &skin.background_texture)?;
 
-        let button_dimensions = PixelDimension(skin.controls_tile_size.0 * 2, skin.controls_tile_size.1 * 2);
-        let (horizontal_arrow_width, vertical_arrow_height) =
-            (skin.controls_tile_size.0 as isize, skin.controls_tile_size.0 as isize);
+        let button_dimensions = PixelDimension {
+            width: skin.controls_tile_size.width * 2,
+            height: skin.controls_tile_size.height * 2,
+        };
+
+        let (horizontal_arrow_width, vertical_arrow_height) = (
+            skin.controls_tile_size.width as isize,
+            skin.controls_tile_size.height as isize,
+        );
 
         for (output_index, (_, output_name)) in self.outputs.iter().enumerate() {
             let arrow_source = if match self.selection {
                 Some((_, selection_y)) => selection_y == output_index,
                 _ => false,
             } {
-                TilePosition(5, 2)
+                TileRect {
+                    x: 5,
+                    y: 2,
+                    width: 1,
+                    height: 2,
+                }
             } else {
-                TilePosition(5, 0)
+                TileRect {
+                    x: 5,
+                    y: 0,
+                    width: 1,
+                    height: 2,
+                }
             };
 
-            let arrow_position = PixelPosition(
-                skin.window_margin as isize + self.inputs.len() as isize * button_dimensions.0 as isize,
-                skin.window_margin as isize + output_index as isize * button_dimensions.1 as isize,
-            );
+            let arrow_position = PixelPosition {
+                x: skin.window_margin as isize + self.inputs.len() as isize * button_dimensions.width as isize,
+                y: skin.window_margin as isize + output_index as isize * button_dimensions.height as isize,
+            };
 
-            let text_position = PixelPosition(
-                arrow_position.0 + horizontal_arrow_width + skin.label_spacing as isize,
-                arrow_position.1 + (button_dimensions.1 as isize - skin.font_tile_size.1 as isize) / 2,
-            );
+            let text_position = PixelPosition {
+                x: arrow_position.x + horizontal_arrow_width + skin.label_spacing as isize,
+                y: arrow_position.y + (button_dimensions.height as isize - skin.font_tile_size.height as isize) / 2,
+            };
 
             draw_tiles(
                 canvas,
@@ -71,8 +83,6 @@ impl MidiMatrixApp {
                 skin.controls_tile_size,
                 arrow_source,
                 arrow_position,
-                1,
-                2,
             )?;
 
             draw_string(
@@ -91,23 +101,33 @@ impl MidiMatrixApp {
                 Some((selection_x, _)) => selection_x == input_index,
                 _ => false,
             } {
-                TilePosition(6, 3)
+                TileRect {
+                    x: 6,
+                    y: 3,
+                    width: 2,
+                    height: 1,
+                }
             } else {
-                TilePosition(6, 1)
+                TileRect {
+                    x: 6,
+                    y: 1,
+                    width: 2,
+                    height: 1,
+                }
             };
 
-            let arrow_position = PixelPosition(
-                skin.window_margin as isize + input_index as isize * button_dimensions.0 as isize,
-                skin.window_margin as isize + self.outputs.len() as isize * button_dimensions.1 as isize,
-            );
+            let arrow_position = PixelPosition {
+                x: skin.window_margin as isize + input_index as isize * button_dimensions.width as isize,
+                y: skin.window_margin as isize + self.outputs.len() as isize * button_dimensions.height as isize,
+            };
 
-            let text_position = PixelPosition(
-                arrow_position.0 + (button_dimensions.0 as isize - skin.font_tile_size.0 as isize) / 2,
-                arrow_position.1
+            let text_position = PixelPosition {
+                x: arrow_position.x + (button_dimensions.width as isize - skin.font_tile_size.width as isize) / 2,
+                y: arrow_position.y
                     + vertical_arrow_height
                     + skin.label_spacing as isize
-                    + input_name.len() as isize * skin.font_tile_size.0 as isize,
-            );
+                    + input_name.len() as isize * skin.font_tile_size.width as isize,
+            };
 
             draw_tiles(
                 canvas,
@@ -115,8 +135,6 @@ impl MidiMatrixApp {
                 skin.controls_tile_size,
                 arrow_source,
                 arrow_position,
-                2,
-                1,
             )?;
 
             draw_string(
@@ -133,15 +151,25 @@ impl MidiMatrixApp {
         for (output_index, (output_addr, _)) in self.outputs.iter().enumerate() {
             for (input_index, (input_addr, _)) in self.inputs.iter().enumerate() {
                 let button_source = if self.connections.contains(&(*input_addr, *output_addr)) {
-                    TilePosition(0, 2)
+                    TileRect {
+                        x: 0,
+                        y: 2,
+                        width: 2,
+                        height: 2,
+                    }
                 } else {
-                    TilePosition(0, 0)
+                    TileRect {
+                        x: 0,
+                        y: 0,
+                        width: 2,
+                        height: 2,
+                    }
                 };
 
-                let button_position = PixelPosition(
-                    skin.window_margin as isize + input_index as isize * button_dimensions.0 as isize,
-                    skin.window_margin as isize + output_index as isize * button_dimensions.1 as isize,
-                );
+                let button_position = PixelPosition {
+                    x: skin.window_margin as isize + input_index as isize * button_dimensions.width as isize,
+                    y: skin.window_margin as isize + output_index as isize * button_dimensions.height as isize,
+                };
 
                 draw_tiles(
                     canvas,
@@ -149,8 +177,6 @@ impl MidiMatrixApp {
                     skin.controls_tile_size,
                     button_source,
                     button_position,
-                    2,
-                    2,
                 )?;
             }
         }
@@ -161,17 +187,17 @@ impl MidiMatrixApp {
 
     fn resize_window(&self, canvas: &mut Canvas<Window>, skin: &Skin) -> Result<(), String> {
         let window_width = skin.window_margin
-            + self.inputs.len() * (2 * skin.controls_tile_size.0) // Controls
-            + skin.controls_tile_size.0 // Arrow
+            + self.inputs.len() * (2 * skin.controls_tile_size.width) // Controls
+            + skin.controls_tile_size.width // Arrow
             + skin.label_spacing
-            + self.outputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) * (skin.font_tile_size.0)
+            + self.outputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) * (skin.font_tile_size.width)
             + skin.window_margin;
 
         let window_height = skin.window_margin
-            + self.outputs.len() * (2 * skin.controls_tile_size.1) // Controls
-            + skin.controls_tile_size.1 // Arrow
+            + self.outputs.len() * (2 * skin.controls_tile_size.height) // Controls
+            + skin.controls_tile_size.height // Arrow
             + skin.label_spacing
-            + self.inputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) * (skin.font_tile_size.0)
+            + self.inputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) * (skin.font_tile_size.width)
             + skin.window_margin;
 
         let window = canvas.window_mut();
@@ -184,8 +210,8 @@ impl MidiMatrixApp {
 
     fn control_under_position(&self, skin: &Skin, position: PixelPosition) -> Option<(usize, usize)> {
         let (px, py) = (
-            position.0 - skin.window_margin as isize,
-            position.1 - skin.window_margin as isize,
+            position.x - skin.window_margin as isize,
+            position.y - skin.window_margin as isize,
         );
 
         if (px < 0) || (py < 0) {
@@ -193,8 +219,8 @@ impl MidiMatrixApp {
         }
 
         let (control_x, control_y) = (
-            px as usize / (skin.controls_tile_size.0 * 2),
-            py as usize / (skin.controls_tile_size.1 * 2),
+            px as usize / (skin.controls_tile_size.width * 2),
+            py as usize / (skin.controls_tile_size.height * 2),
         );
 
         if (control_x < self.inputs.len()) && (control_y < self.outputs.len()) {
@@ -327,7 +353,13 @@ fn main() -> Result<(), String> {
                     let mut app = app.lock().unwrap();
 
                     let last_selection = app.selection;
-                    app.selection = app.control_under_position(&skin, PixelPosition(x as isize, y as isize));
+                    app.selection = app.control_under_position(
+                        &skin,
+                        PixelPosition {
+                            x: x as isize,
+                            y: y as isize,
+                        },
+                    );
 
                     if app.selection != last_selection {
                         app.render(&mut canvas, &skin)?;
