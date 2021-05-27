@@ -52,15 +52,15 @@ pub fn draw_character(
     rotation: usize,
 ) -> Result<(), String> {
     let source_rect = {
-        let tmp = if (character <= '\u{001F}') || (character >= '\u{0080}') {
+        let tile_index = if (character <= '\u{001F}') || (character >= '\u{0080}') {
             0x7F
         } else {
             character as usize
         };
-        let (tile_x, tile_y) = (tmp % tiles_per_dimension.0, tmp / tiles_per_dimension.0);
+        let tile_position = TilePosition(tile_index % tiles_per_dimension.0, tile_index / tiles_per_dimension.0);
         Rect::new(
-            tile_x as i32 * tile_size.0 as i32,
-            tile_y as i32 * tile_size.1 as i32,
+            tile_position.0 as i32 * tile_size.0 as i32,
+            tile_position.1 as i32 * tile_size.1 as i32,
             tile_size.0 as u32,
             tile_size.1 as u32,
         )

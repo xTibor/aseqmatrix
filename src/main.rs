@@ -35,11 +35,11 @@ impl MidiMatrixApp {
         }
     }
 
-    fn render(&self, canvas: &mut Canvas<Window>, skin: &Skin) {
+    fn render(&self, canvas: &mut Canvas<Window>, skin: &Skin) -> Result<(), String> {
         canvas.set_draw_color(pixels::Color::RGB(128, 128, 128));
         canvas.clear();
 
-        draw_tiled_background(canvas, &skin.background_texture).unwrap();
+        draw_tiled_background(canvas, &skin.background_texture)?;
 
         let button_dimensions = PixelDimension(skin.controls_tile_size.0 * 2, skin.controls_tile_size.1 * 2);
         let (horizontal_arrow_width, vertical_arrow_height) =
@@ -73,8 +73,7 @@ impl MidiMatrixApp {
                 arrow_position,
                 1,
                 2,
-            )
-            .unwrap();
+            )?;
 
             draw_string(
                 canvas,
@@ -84,8 +83,7 @@ impl MidiMatrixApp {
                 output_name,
                 text_position,
                 0,
-            )
-            .unwrap();
+            )?;
         }
 
         for (input_index, (_, input_name)) in self.inputs.iter().enumerate() {
@@ -119,8 +117,7 @@ impl MidiMatrixApp {
                 arrow_position,
                 2,
                 1,
-            )
-            .unwrap();
+            )?;
 
             draw_string(
                 canvas,
@@ -130,8 +127,7 @@ impl MidiMatrixApp {
                 input_name,
                 text_position,
                 3,
-            )
-            .unwrap();
+            )?;
         }
 
         for (output_index, (output_addr, _)) in self.outputs.iter().enumerate() {
@@ -155,15 +151,15 @@ impl MidiMatrixApp {
                     button_position,
                     2,
                     2,
-                )
-                .unwrap();
+                )?;
             }
         }
 
         canvas.present();
+        Ok(())
     }
 
-    fn resize_window(&self, canvas: &mut Canvas<Window>, skin: &Skin) {
+    fn resize_window(&self, canvas: &mut Canvas<Window>, skin: &Skin) -> Result<(), String> {
         let window_width = skin.window_margin
             + self.inputs.len() * (2 * skin.controls_tile_size.0) // Controls
             + skin.controls_tile_size.0 // Arrow
@@ -179,7 +175,11 @@ impl MidiMatrixApp {
             + skin.window_margin;
 
         let window = canvas.window_mut();
-        window.set_size(window_width as u32, window_height as u32).unwrap();
+        window
+            .set_size(window_width as u32, window_height as u32)
+            .map_err(|e| e.to_string())?;
+
+        Ok(())
     }
 
     fn control_under_position(&self, skin: &Skin, position: PixelPosition) -> Option<(usize, usize)> {
@@ -223,16 +223,16 @@ fn main() -> Result<(), String> {
 
     {
         let app = app.lock().unwrap();
-        app.resize_window(&mut canvas, &skin);
+        app.resize_window(&mut canvas, &skin)?;
         // This double rendering is a workaround for the screen corruption after
         // resizing the window. Double buffering seems to be fucked in SDL2.
-        app.render(&mut canvas, &skin);
-        app.render(&mut canvas, &skin);
+        app.render(&mut canvas, &skin)?;
+        app.render(&mut canvas, &skin)?;
     }
 
     let sdl_event = sdl_context.event()?;
-    sdl_event.register_custom_event::<MidiPortChangeEvent>().unwrap();
-    sdl_event.push_custom_event(MidiPortChangeEvent).unwrap();
+    sdl_event.register_custom_event::<MidiPortChangeEvent>()?;
+    sdl_event.push_custom_event(MidiPortChangeEvent)?;
     let tx = sdl_event.event_sender();
 
     {
@@ -304,10 +304,8 @@ fn main() -> Result<(), String> {
                         }
                         _ => {}
                     }
-                    println!("{:?}", event);
                     continue;
                 }
-                println!("poll");
                 alsa::poll::poll(&mut fds, -1).unwrap();
             }
         });
@@ -316,7 +314,7 @@ fn main() -> Result<(), String> {
     let mut events = sdl_context.event_pump()?;
     'main: loop {
         for event in events.wait_iter() {
-            println!("{:?}", event);
+            //println!("{:?}", event);
             match event {
                 Event::Quit { .. }
                 | Event::KeyDown {
@@ -327,13 +325,12 @@ fn main() -> Result<(), String> {
                 }
                 Event::MouseMotion { x, y, .. } => {
                     let mut app = app.lock().unwrap();
-                    let last_selection = app.selection;
 
+                    let last_selection = app.selection;
                     app.selection = app.control_under_position(&skin, PixelPosition(x as isize, y as isize));
-                    println!("{:?}", app.selection);
 
                     if app.selection != last_selection {
-                        app.render(&mut canvas, &skin);
+                        app.render(&mut canvas, &skin)?;
                     }
                 }
                 Event::MouseButtonUp { .. } => {
@@ -358,9 +355,9 @@ fn main() -> Result<(), String> {
                 Event::User { .. } => {
                     // TODO: Check user_event kind
                     let app = app.lock().unwrap();
-                    app.resize_window(&mut canvas, &skin);
-                    app.render(&mut canvas, &skin);
-                    app.render(&mut canvas, &skin);
+                    app.resize_window(&mut canvas, &skin)?;
+                    app.render(&mut canvas, &skin)?;
+                    app.render(&mut canvas, &skin)?;
                 }
 
                 Event::KeyDown {
@@ -369,9 +366,9 @@ fn main() -> Result<(), String> {
                 } => {
                     let app = app.lock().unwrap();
                     skin = Skin::new(&texture_creator, "test")?;
-                    app.resize_window(&mut canvas, &skin);
-                    app.render(&mut canvas, &skin);
-                    app.render(&mut canvas, &skin);
+                    app.resize_window(&mut canvas, &skin)?;
+                    app.render(&mut canvas, &skin)?;
+                    app.render(&mut canvas, &skin)?;
                 }
 
                 _ => {}
