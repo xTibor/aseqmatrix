@@ -1,7 +1,7 @@
 use alsa::seq::{Addr, ClientIter, PortInfo, PortIter, PortSubscribe, PortSubscribeIter, QuerySubsType, Seq};
 use alsa::seq::{PortCap, PortType};
 use alsa::PollDescriptors;
-use sdl2::event::Event;
+use sdl2::event::{Event, WindowEvent};
 use sdl2::image::LoadTexture;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels;
@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 mod graphics;
-use graphics::{draw_string, draw_tiled_background, draw_tiles, TILE_SIZE};
+use graphics::{draw_string, draw_tiled_background, draw_tiles};
 
 mod skin;
 use skin::Skin;
@@ -42,23 +42,47 @@ impl MidiMatrixApp {
 
         draw_tiled_background(canvas, &skin.background_texture).unwrap();
 
+        let (button_width, button_height) = (
+            skin.controls_tile_size.0 as isize * 2,
+            skin.controls_tile_size.1 as isize * 2,
+        );
+
         for (output_index, (_, output_name)) in self.outputs.iter().enumerate() {
             let source = if match self.selection {
                 Some((_, selection_y)) => selection_y == output_index,
                 _ => false,
             } {
-                (5, 0)
+                (5, 2)
             } else {
-                (2, 0)
+                (5, 0)
             };
 
-            let y = 1 + output_index as isize * 2;
+            let y = skin.window_margin as isize + output_index as isize * button_height;
 
-            let x_arrow_right = self.inputs.len() as isize * 2 + 1;
-            draw_tiles(canvas, &skin.foreground_texture, source, (x_arrow_right, y), 1, 2).unwrap();
+            let x_arrow_right = skin.window_margin as isize + self.inputs.len() as isize * button_width;
+            draw_tiles(
+                canvas,
+                &skin.controls_texture,
+                skin.controls_tile_size,
+                skin.controls_tiles_per_dimension,
+                source,
+                (x_arrow_right, y),
+                1,
+                2,
+            )
+            .unwrap();
 
-            let x_text = x_arrow_right + 2;
-            draw_string(canvas, &skin.foreground_texture, output_name, (x_text, y), 0).unwrap();
+            let x_text = x_arrow_right + button_width / 2 + skin.label_spacing as isize;
+            draw_string(
+                canvas,
+                &skin.font_texture,
+                skin.font_tile_size,
+                skin.font_tiles_per_dimension,
+                output_name,
+                (x_text, y),
+                0,
+            )
+            .unwrap();
         }
 
         for (input_index, (_, input_name)) in self.inputs.iter().enumerate() {
@@ -66,33 +90,58 @@ impl MidiMatrixApp {
                 Some((selection_x, _)) => selection_x == input_index,
                 _ => false,
             } {
-                (3, 3)
+                (6, 3)
             } else {
-                (0, 3)
+                (6, 1)
             };
 
-            let x = 1 + input_index as isize * 2;
+            let x = skin.window_margin as isize + input_index as isize * button_width;
 
-            let y_arrow_down = self.outputs.len() as isize * 2 + 1;
-            draw_tiles(canvas, &skin.foreground_texture, source, (x, y_arrow_down), 2, 1).unwrap();
+            let y_arrow_down = skin.window_margin as isize + self.outputs.len() as isize * button_height;
+            draw_tiles(
+                canvas,
+                &skin.controls_texture,
+                skin.controls_tile_size,
+                skin.controls_tiles_per_dimension,
+                source,
+                (x, y_arrow_down),
+                2,
+                1,
+            )
+            .unwrap();
 
-            let y_text = y_arrow_down + input_name.len() as isize + 1;
-            draw_string(canvas, &skin.foreground_texture, input_name, (x, y_text), 3).unwrap();
+            let y_text =
+                y_arrow_down + button_height / 2 + skin.label_spacing as isize + input_name.len() as isize * skin.font_tile_size.0 as isize;
+            draw_string(
+                canvas,
+                &skin.font_texture,
+                skin.font_tile_size,
+                skin.font_tiles_per_dimension,
+                input_name,
+                (x, y_text),
+                3,
+            )
+            .unwrap();
         }
 
         for (output_index, (output_addr, _)) in self.outputs.iter().enumerate() {
             for (input_index, (input_addr, _)) in self.inputs.iter().enumerate() {
                 let source = if self.connections.contains(&(*input_addr, *output_addr)) {
-                    (3, 0)
+                    (0, 2)
                 } else {
                     (0, 0)
                 };
 
                 draw_tiles(
                     canvas,
-                    &skin.foreground_texture,
+                    &skin.controls_texture,
+                    skin.controls_tile_size,
+                    skin.controls_tiles_per_dimension,
                     source,
-                    (1 + input_index as isize * 2, 1 + output_index as isize * 2),
+                    (
+                        skin.window_margin as isize + input_index as isize * button_width,
+                        skin.window_margin as isize + output_index as isize * button_height,
+                    ),
                     2,
                     2,
                 )
@@ -104,14 +153,44 @@ impl MidiMatrixApp {
     }
 
     fn resize_window(&self, canvas: &mut Canvas<Window>, skin: &Skin) {
-        let window_width =
-            (self.inputs.len() * 2 + self.outputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) + 4)
-                * TILE_SIZE;
-        let window_height =
-            (self.outputs.len() * 2 + self.inputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) + 4)
-                * TILE_SIZE;
+        let window_width = skin.window_margin
+            + self.inputs.len() * (2 * skin.controls_tile_size.0) // Controls
+            + skin.controls_tile_size.0 // Arrow
+            + skin.label_spacing
+            + self.outputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) * (skin.font_tile_size.0)
+            + skin.window_margin;
+
+        let window_height = skin.window_margin
+            + self.outputs.len() * (2 * skin.controls_tile_size.1) // Controls
+            + skin.controls_tile_size.1 // Arrow
+            + skin.label_spacing
+            + self.inputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) * (skin.font_tile_size.0)
+            + skin.window_margin;
+
         let window = canvas.window_mut();
         window.set_size(window_width as u32, window_height as u32).unwrap();
+    }
+
+    fn control_under_position(&self, skin: &Skin, x: usize, y: usize)-> Option<(usize, usize)> {
+        let (px, py) = (
+            x as isize - skin.window_margin as isize,
+            y as isize - skin.window_margin as isize,
+        );
+
+        if (px < 0) || (py < 0) {
+            return None;
+        }
+
+        let (control_x, control_y) = (
+            px as usize / (skin.controls_tile_size.0 * 2),
+            py as usize / (skin.controls_tile_size.1 * 2),
+        );
+
+        if (control_x < self.inputs.len()) && (control_y < self.outputs.len()) {
+            Some((control_x, control_y))
+        } else {
+            None
+        }
     }
 }
 
@@ -239,22 +318,7 @@ fn main() -> Result<(), String> {
                     let mut app = app.lock().unwrap();
                     let last_selection = app.selection;
 
-                    // TODO: rounding problems at the top/left edges
-                    let (selection_x, selection_y) = (
-                        ((x - TILE_SIZE as i32) / TILE_SIZE as i32) / 2,
-                        ((y - TILE_SIZE as i32) / TILE_SIZE as i32) / 2,
-                    );
-
-                    app.selection = if (selection_x >= 0)
-                        && (selection_x < app.inputs.len() as i32)
-                        && (selection_y >= 0)
-                        && (selection_y < app.outputs.len() as i32)
-                    {
-                        Some((selection_x as usize, selection_y as usize))
-                    } else {
-                        None
-                    };
-
+                    app.selection = app.control_under_position(&skin, x as usize, y as usize);
                     println!("{:?}", app.selection);
 
                     if app.selection != last_selection {

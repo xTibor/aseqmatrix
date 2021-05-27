@@ -1,111 +1,89 @@
-use sdl2::rect::Rect;
+use sdl2::rect::{Point, Rect};
 use sdl2::render::{Canvas, Texture};
 use sdl2::video::Window;
-
-pub const TILE_SIZE: usize = 12;
-pub const TILES_PER_LINE: usize = 16;
-
-pub fn draw_tile(
-    canvas: &mut Canvas<Window>,
-    texture: &Texture,
-    source: (isize, isize),
-    target: (isize, isize),
-    rotation: usize,
-) -> Result<(), String> {
-    let source_rect = Rect::new(
-        source.0 as i32 * TILE_SIZE as i32,
-        source.1 as i32 * TILE_SIZE as i32,
-        TILE_SIZE as u32,
-        TILE_SIZE as u32,
-    );
-    let target_rect = Rect::new(
-        target.0 as i32 * TILE_SIZE as i32,
-        target.1 as i32 * TILE_SIZE as i32,
-        TILE_SIZE as u32,
-        TILE_SIZE as u32,
-    );
-    canvas.copy_ex(
-        &texture,
-        source_rect,
-        target_rect,
-        90.0 * rotation as f64,
-        None,
-        false,
-        false,
-    )?;
-    Ok(())
-}
 
 pub fn draw_tiles(
     canvas: &mut Canvas<Window>,
     texture: &Texture,
+    tile_size: (usize, usize),
+    tiles_per_dimension: (usize, usize),
     source: (isize, isize),
     target: (isize, isize),
     width: usize,
     height: usize,
 ) -> Result<(), String> {
-    for dy in 0..height {
-        for dx in 0..width {
-            draw_tile(
-                canvas,
-                texture,
-                (source.0 + dx as isize, source.1 + dy as isize),
-                (target.0 + dx as isize, target.1 + dy as isize),
-                0,
-            )?;
-        }
-    }
+    let source_rect = Rect::new(
+        source.0 as i32 * tile_size.0 as i32,
+        source.1 as i32 * tile_size.1 as i32,
+        width as u32 * tile_size.0 as u32,
+        height as u32 * tile_size.1 as u32,
+    );
+
+    let target_rect = Rect::new(
+        target.0 as i32,
+        target.1 as i32,
+        width as u32 * tile_size.0 as u32,
+        height as u32 * tile_size.1 as u32,
+    );
+
+    canvas.copy(&texture, source_rect, target_rect)?;
+
     Ok(())
 }
 
 pub fn draw_character(
     canvas: &mut Canvas<Window>,
     texture: &Texture,
+    tile_size: (usize, usize),
+    tiles_per_dimension: (usize, usize),
     character: char,
     target: (isize, isize),
     rotation: usize,
 ) -> Result<(), String> {
-    let source = {
+    let source_rect = {
         let tmp = if (character <= '\u{001F}') || (character >= '\u{0080}') {
             0x7F
         } else {
             character as usize
         };
-
-        ((tmp % TILES_PER_LINE) as isize, (tmp / TILES_PER_LINE) as isize * 2)
+        let (tile_x, tile_y) = (tmp % tiles_per_dimension.0, tmp / tiles_per_dimension.0);
+        Rect::new(
+            tile_x as i32 * tile_size.0 as i32,
+            tile_y as i32 * tile_size.1 as i32,
+            tile_size.0 as u32,
+            tile_size.1 as u32,
+        )
     };
 
-    let (dx, dy) = match rotation {
-        0 => (0, 1),
-        1 => (-1, 0),
-        2 => (0, -1),
-        3 => (1, 0),
-        _ => unreachable!(),
-    };
+    let target_rect = Rect::new(target.0 as i32, target.1 as i32, tile_size.0 as u32, tile_size.1 as u32);
 
-    draw_tile(canvas, texture, source, target, rotation)?;
-    draw_tile(
-        canvas,
-        texture,
-        (source.0, source.1 + 1),
-        (target.0 + dx, target.1 + dy),
-        rotation,
+    canvas.copy_ex(
+        &texture,
+        source_rect,
+        target_rect,
+        90.0 * rotation as f64,
+        Point::new(0, 0),
+        false,
+        false,
     )?;
+
     Ok(())
 }
 
 pub fn draw_string(
     canvas: &mut Canvas<Window>,
     texture: &Texture,
+    tile_size: (usize, usize),
+    tiles_per_dimension: (usize, usize),
     string: &str,
     target: (isize, isize),
     rotation: usize,
 ) -> Result<(), String> {
     let (dx, dy) = match rotation {
-        0 => (1, 0),
-        1 => (0, 1),
-        2 => (-1, 0),
-        3 => (0, -1),
+        0 => (tile_size.0 as isize, 0),
+        1 => (0, tile_size.0 as isize),
+        2 => (-(tile_size.0 as isize), 0),
+        3 => (0, -(tile_size.0 as isize)),
         _ => unreachable!(),
     };
 
@@ -113,6 +91,8 @@ pub fn draw_string(
         draw_character(
             canvas,
             texture,
+            tile_size,
+            tiles_per_dimension,
             character,
             (target.0 + index as isize * dx, target.1 + index as isize * dy),
             rotation,
