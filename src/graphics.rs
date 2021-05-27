@@ -121,10 +121,7 @@ pub fn draw_string(
     Ok(())
 }
 
-pub fn draw_tiled_background(
-    canvas: &mut Canvas<Window>,
-    texture: &Texture,
-)-> Result<(), String> {
+pub fn draw_tiled_background(canvas: &mut Canvas<Window>, texture: &Texture) -> Result<(), String> {
     let (canvas_width, canvas_height) = canvas.output_size()?;
     let (texture_width, texture_height) = {
         let query = texture.query();
@@ -134,7 +131,12 @@ pub fn draw_tiled_background(
     let source_rect = Rect::new(0, 0, texture_width, texture_height);
     for x in 0..canvas_width / texture_width + 1 {
         for y in 0..canvas_height / texture_height + 1 {
-            let target_rect = Rect::new(texture_width as i32 * x as i32, texture_height as i32 * y as i32, texture_width, texture_height);
+            let target_rect = Rect::new(
+                texture_width as i32 * x as i32,
+                texture_height as i32 * y as i32,
+                texture_width,
+                texture_height,
+            );
             canvas.copy(texture, source_rect, target_rect)?;
         }
     }

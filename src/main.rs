@@ -12,7 +12,10 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 mod graphics;
-use graphics::{TILE_SIZE, draw_string, draw_tiled_background, draw_tiles};
+use graphics::{draw_string, draw_tiled_background, draw_tiles, TILE_SIZE};
+
+mod skin;
+use skin::Skin;
 
 struct MidiPortChangeEvent;
 
@@ -33,11 +36,11 @@ impl MidiMatrixApp {
         }
     }
 
-    fn render(&self, canvas: &mut Canvas<Window>, texture_foreground: &Texture, texture_background: &Texture) {
+    fn render(&self, canvas: &mut Canvas<Window>, skin: &Skin) {
         canvas.set_draw_color(pixels::Color::RGB(128, 128, 128));
         canvas.clear();
 
-        draw_tiled_background(canvas, texture_background).unwrap();
+        draw_tiled_background(canvas, &skin.background_texture).unwrap();
 
         for (output_index, (_, output_name)) in self.outputs.iter().enumerate() {
             let source = if match self.selection {
@@ -52,10 +55,10 @@ impl MidiMatrixApp {
             let y = 1 + output_index as isize * 2;
 
             let x_arrow_right = self.inputs.len() as isize * 2 + 1;
-            draw_tiles(canvas, texture_foreground, source, (x_arrow_right, y), 1, 2).unwrap();
+            draw_tiles(canvas, &skin.foreground_texture, source, (x_arrow_right, y), 1, 2).unwrap();
 
             let x_text = x_arrow_right + 2;
-            draw_string(canvas, texture_foreground, output_name, (x_text, y), 0).unwrap();
+            draw_string(canvas, &skin.foreground_texture, output_name, (x_text, y), 0).unwrap();
         }
 
         for (input_index, (_, input_name)) in self.inputs.iter().enumerate() {
@@ -71,10 +74,10 @@ impl MidiMatrixApp {
             let x = 1 + input_index as isize * 2;
 
             let y_arrow_down = self.outputs.len() as isize * 2 + 1;
-            draw_tiles(canvas, texture_foreground, source, (x, y_arrow_down), 2, 1).unwrap();
+            draw_tiles(canvas, &skin.foreground_texture, source, (x, y_arrow_down), 2, 1).unwrap();
 
             let y_text = y_arrow_down + input_name.len() as isize + 1;
-            draw_string(canvas, texture_foreground, input_name, (x, y_text), 3).unwrap();
+            draw_string(canvas, &skin.foreground_texture, input_name, (x, y_text), 3).unwrap();
         }
 
         for (output_index, (output_addr, _)) in self.outputs.iter().enumerate() {
@@ -87,7 +90,7 @@ impl MidiMatrixApp {
 
                 draw_tiles(
                     canvas,
-                    texture_foreground,
+                    &skin.foreground_texture,
                     source,
                     (1 + input_index as isize * 2, 1 + output_index as isize * 2),
                     2,
@@ -100,7 +103,7 @@ impl MidiMatrixApp {
         canvas.present();
     }
 
-    fn resize_window(&self, canvas: &mut Canvas<Window>) {
+    fn resize_window(&self, canvas: &mut Canvas<Window>, skin: &Skin) {
         let window_width =
             (self.inputs.len() * 2 + self.outputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) + 4)
                 * TILE_SIZE;
@@ -126,13 +129,15 @@ fn main() -> Result<(), String> {
 
     let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
     let texture_creator = canvas.texture_creator();
-    let texture_foreground = texture_creator.load_texture("skins/amber-foreground.png")?;
-    let texture_background = texture_creator.load_texture("skins/amber-background.png")?;
+    let skin = Skin::new(&texture_creator, "amber")?;
 
     {
         let app = app.lock().unwrap();
-        app.resize_window(&mut canvas);
-        app.render(&mut canvas, &texture_foreground, &texture_background);
+        app.resize_window(&mut canvas, &skin);
+        // This double rendering is a workaround for the screen corruption after
+        // resizing the window. Double buffering seems to be fucked in SDL2.
+        app.render(&mut canvas, &skin);
+        app.render(&mut canvas, &skin);
     }
 
     let mut sdl_event = sdl_context.event()?;
@@ -237,7 +242,7 @@ fn main() -> Result<(), String> {
                     // TODO: rounding problems at the top/left edges
                     let (selection_x, selection_y) = (
                         ((x - TILE_SIZE as i32) / TILE_SIZE as i32) / 2,
-                        ((y - TILE_SIZE as i32) / TILE_SIZE as i32) / 2
+                        ((y - TILE_SIZE as i32) / TILE_SIZE as i32) / 2,
                     );
 
                     app.selection = if (selection_x >= 0)
@@ -253,7 +258,7 @@ fn main() -> Result<(), String> {
                     println!("{:?}", app.selection);
 
                     if app.selection != last_selection {
-                        app.render(&mut canvas, &texture_foreground, &texture_background);
+                        app.render(&mut canvas, &skin);
                     }
                 }
                 Event::MouseButtonUp { .. } => {
@@ -272,15 +277,15 @@ fn main() -> Result<(), String> {
                             sub.set_dest(output_addr);
                             seq.subscribe_port(&sub).unwrap();
                         }
-
                     }
                 }
 
                 Event::User { .. } => {
                     // TODO: Check user_event kind
                     let app = app.lock().unwrap();
-                    app.resize_window(&mut canvas);
-                    app.render(&mut canvas, &texture_foreground, &texture_background);
+                    app.resize_window(&mut canvas, &skin);
+                    app.render(&mut canvas, &skin);
+                    app.render(&mut canvas, &skin);
                 }
                 _ => {}
             }
@@ -289,13 +294,3 @@ fn main() -> Result<(), String> {
 
     Ok(())
 }
-
-// Unsub
-//seq.unsubscribe_port(Addr { client: 14, port: 0 }, Addr { client: 129, port: 0 })
-//    .map_err(|e| e.to_string())?;
-
-// Sub
-//let mut sub = PortSubscribe::empty().map_err(|e| e.to_string())?;
-//sub.set_sender(Addr { client: 14, port: 0 });
-//sub.set_dest(Addr { client: 129, port: 0 });
-//seq.subscribe_port(&sub).map_err(|e| e.to_string())?;
