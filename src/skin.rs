@@ -4,16 +4,18 @@ use sdl2::{
     video::WindowContext,
 };
 
+use crate::graphics::{PixelDimension, TileDimension};
+
 pub struct Skin<'a> {
     pub background_texture: Texture<'a>,
 
     pub controls_texture: Texture<'a>,
-    pub controls_tiles_per_dimension: (usize, usize),
-    pub controls_tile_size: (usize, usize),
+    pub controls_tiles_per_dimension: TileDimension,
+    pub controls_tile_size: PixelDimension,
 
     pub font_texture: Texture<'a>,
-    pub font_tiles_per_dimension: (usize, usize),
-    pub font_tile_size: (usize, usize),
+    pub font_tiles_per_dimension: TileDimension,
+    pub font_tile_size: PixelDimension,
 
     pub window_margin: usize,
     pub label_spacing: usize,
@@ -26,20 +28,20 @@ impl<'a> Skin<'a> {
         let background_texture = texture_creator.load_texture(format!("skins/{}/background.png", skin_name))?;
 
         let controls_texture = texture_creator.load_texture(format!("skins/{}/controls.png", skin_name))?;
-        let controls_tiles_per_dimension = (16, 16);
+        let controls_tiles_per_dimension = TileDimension(16, 16);
         let controls_tile_size = {
             let query = controls_texture.query();
-            (
+            PixelDimension(
                 query.width as usize / controls_tiles_per_dimension.0,
                 query.height as usize / controls_tiles_per_dimension.1,
             )
         };
 
         let font_texture = texture_creator.load_texture(format!("skins/{}/font.png", skin_name))?;
-        let font_tiles_per_dimension = (16, 8);
+        let font_tiles_per_dimension = TileDimension(16, 8);
         let font_tile_size = {
             let query = font_texture.query();
-            (
+            PixelDimension(
                 query.width as usize / font_tiles_per_dimension.0,
                 query.height as usize / font_tiles_per_dimension.1,
             )

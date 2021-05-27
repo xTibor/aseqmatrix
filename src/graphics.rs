@@ -2,13 +2,24 @@ use sdl2::rect::{Point, Rect};
 use sdl2::render::{Canvas, Texture};
 use sdl2::video::Window;
 
+#[derive(Copy, Clone, Debug)]
+pub struct PixelPosition(pub isize, pub isize);
+
+#[derive(Copy, Clone, Debug)]
+pub struct PixelDimension(pub usize, pub usize);
+
+#[derive(Copy, Clone, Debug)]
+pub struct TilePosition(pub usize, pub usize);
+
+#[derive(Copy, Clone, Debug)]
+pub struct TileDimension(pub usize, pub usize);
+
 pub fn draw_tiles(
     canvas: &mut Canvas<Window>,
     texture: &Texture,
-    tile_size: (usize, usize),
-    tiles_per_dimension: (usize, usize),
-    source: (isize, isize),
-    target: (isize, isize),
+    tile_size: PixelDimension,
+    source: TilePosition,
+    target: PixelPosition,
     width: usize,
     height: usize,
 ) -> Result<(), String> {
@@ -34,10 +45,10 @@ pub fn draw_tiles(
 pub fn draw_character(
     canvas: &mut Canvas<Window>,
     texture: &Texture,
-    tile_size: (usize, usize),
-    tiles_per_dimension: (usize, usize),
+    tile_size: PixelDimension,
+    tiles_per_dimension: TileDimension,
     character: char,
-    target: (isize, isize),
+    target: PixelPosition,
     rotation: usize,
 ) -> Result<(), String> {
     let source_rect = {
@@ -73,10 +84,10 @@ pub fn draw_character(
 pub fn draw_string(
     canvas: &mut Canvas<Window>,
     texture: &Texture,
-    tile_size: (usize, usize),
-    tiles_per_dimension: (usize, usize),
+    tile_size: PixelDimension,
+    tiles_per_dimension: TileDimension,
     string: &str,
-    target: (isize, isize),
+    target: PixelPosition,
     rotation: usize,
 ) -> Result<(), String> {
     let (dx, dy) = match rotation {
@@ -94,7 +105,7 @@ pub fn draw_string(
             tile_size,
             tiles_per_dimension,
             character,
-            (target.0 + index as isize * dx, target.1 + index as isize * dy),
+            PixelPosition(target.0 + index as isize * dx, target.1 + index as isize * dy),
             rotation,
         )?;
     }
