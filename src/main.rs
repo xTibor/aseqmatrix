@@ -119,7 +119,7 @@ impl MidiMatrixApp {
 
             let text_position = PixelPosition {
                 x: arrow_position.x
-                    + (button_dimensions.width as isize - theme.font_texture.tile_size.width as isize) / 2,
+                    + (button_dimensions.width as isize - theme.font_texture.tile_size.height as isize) / 2,
                 y: arrow_position.y
                     + vertical_arrow_height
                     + theme.manifest.metrics.label_spacing as isize
