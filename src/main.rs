@@ -380,16 +380,19 @@ fn main() -> Result<(), String> {
                     ..
                 } => {
                     let mut app = app.lock().unwrap();
-                    app.mouse_down = true;
-                    app.update_selection(
-                        &mut canvas,
-                        &theme,
-                        PixelPosition {
-                            x: x as isize,
-                            y: y as isize,
-                        },
-                        true,
-                    )?;
+
+                    if app.selection.is_some() {
+                        app.mouse_down = true;
+                        app.update_selection(
+                            &mut canvas,
+                            &theme,
+                            PixelPosition {
+                                x: x as isize,
+                                y: y as isize,
+                            },
+                            true,
+                        )?;
+                    }
                 }
                 Event::MouseButtonUp {
                     x,
@@ -398,30 +401,32 @@ fn main() -> Result<(), String> {
                     ..
                 } => {
                     let mut app = app.lock().unwrap();
-                    app.mouse_down = false;
-                    app.update_selection(
-                        &mut canvas,
-                        &theme,
-                        PixelPosition {
-                            x: x as isize,
-                            y: y as isize,
-                        },
-                        true,
-                    )?;
+                    if app.mouse_down {
+                        app.mouse_down = false;
+                        app.update_selection(
+                            &mut canvas,
+                            &theme,
+                            PixelPosition {
+                                x: x as isize,
+                                y: y as isize,
+                            },
+                            true,
+                        )?;
 
-                    if let Some((selection_x, selection_y)) = app.selection {
-                        // assert!(selection in bounds)
-                        let input_addr = app.inputs[selection_x].0;
-                        let output_addr = app.outputs[selection_y].0;
+                        if let Some((selection_x, selection_y)) = app.selection {
+                            // assert!(selection in bounds)
+                            let input_addr = app.inputs[selection_x].0;
+                            let output_addr = app.outputs[selection_y].0;
 
-                        let seq = Seq::open(None, None, false).unwrap();
-                        if app.connections.contains(&(input_addr, output_addr)) {
-                            seq.unsubscribe_port(input_addr, output_addr).unwrap();
-                        } else {
-                            let mut sub = PortSubscribe::empty().unwrap();
-                            sub.set_sender(input_addr);
-                            sub.set_dest(output_addr);
-                            seq.subscribe_port(&sub).unwrap();
+                            let seq = Seq::open(None, None, false).unwrap();
+                            if app.connections.contains(&(input_addr, output_addr)) {
+                                seq.unsubscribe_port(input_addr, output_addr).unwrap();
+                            } else {
+                                let mut sub = PortSubscribe::empty().unwrap();
+                                sub.set_sender(input_addr);
+                                sub.set_dest(output_addr);
+                                seq.subscribe_port(&sub).unwrap();
+                            }
                         }
                     }
                 }
