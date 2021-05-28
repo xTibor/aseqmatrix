@@ -244,7 +244,10 @@ fn main() -> Result<(), String> {
     let app = Arc::new(Mutex::new(MidiMatrixApp::new()));
 
     let sdl_context = sdl2::init()?;
+
     let video_subsys = sdl_context.video()?;
+    video_subsys.enable_screen_saver();
+
     let window = video_subsys
         .window("MIDI Matrix", 640, 480)
         .position_centered()
