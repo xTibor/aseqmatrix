@@ -54,17 +54,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "dangling-wires"
-version = "0.1.0"
-dependencies = [
- "alsa",
- "sdl2",
- "serde",
- "serde_derive",
- "toml",
-]
-
-[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -75,6 +64,17 @@ name = "libc"
 version = "0.2.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "18794a8ad5b29321f790b55d93dfba91e125cb1a9edbd4f8e3150acc771c1a5e"
+
+[[package]]
+name = "midi-matrix"
+version = "0.1.0"
+dependencies = [
+ "alsa",
+ "sdl2",
+ "serde",
+ "serde_derive",
+ "toml",
+]
 
 [[package]]
 name = "nix"
