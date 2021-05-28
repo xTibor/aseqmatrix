@@ -1,14 +1,16 @@
-use alsa::seq::{Addr, ClientIter, PortInfo, PortIter, PortSubscribe, PortSubscribeIter, QuerySubsType, Seq};
-use alsa::seq::{PortCap, PortType};
+use std::ffi::CString;
+use std::path::Path;
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+use alsa::seq::{
+    Addr, ClientIter, PortCap, PortInfo, PortIter, PortSubscribe, PortSubscribeIter, PortType, QuerySubsType, Seq,
+};
 use alsa::PollDescriptors;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::render::Canvas;
 use sdl2::video::Window;
-use std::ffi::CString;
-use std::path::Path;
-use std::sync::{Arc, Mutex};
-use std::thread;
 
 mod graphics;
 use graphics::{draw_string, draw_tiled_background, draw_tiles, PixelDimension, PixelPosition, TileRect};
@@ -69,12 +71,14 @@ impl MidiMatrixApp {
             };
 
             let arrow_position = PixelPosition {
-                x: theme.window_margin as isize + self.inputs.len() as isize * button_dimensions.width as isize,
-                y: theme.window_margin as isize + output_index as isize * button_dimensions.height as isize,
+                x: theme.manifest.metrics.window_margin as isize
+                    + self.inputs.len() as isize * button_dimensions.width as isize,
+                y: theme.manifest.metrics.window_margin as isize
+                    + output_index as isize * button_dimensions.height as isize,
             };
 
             let text_position = PixelPosition {
-                x: arrow_position.x + horizontal_arrow_width + theme.label_spacing as isize,
+                x: arrow_position.x + horizontal_arrow_width + theme.manifest.metrics.label_spacing as isize,
                 y: arrow_position.y + (button_dimensions.height as isize - theme.font_tile_size.height as isize) / 2,
             };
 
@@ -118,15 +122,17 @@ impl MidiMatrixApp {
             };
 
             let arrow_position = PixelPosition {
-                x: theme.window_margin as isize + input_index as isize * button_dimensions.width as isize,
-                y: theme.window_margin as isize + self.outputs.len() as isize * button_dimensions.height as isize,
+                x: theme.manifest.metrics.window_margin as isize
+                    + input_index as isize * button_dimensions.width as isize,
+                y: theme.manifest.metrics.window_margin as isize
+                    + self.outputs.len() as isize * button_dimensions.height as isize,
             };
 
             let text_position = PixelPosition {
                 x: arrow_position.x + (button_dimensions.width as isize - theme.font_tile_size.width as isize) / 2,
                 y: arrow_position.y
                     + vertical_arrow_height
-                    + theme.label_spacing as isize
+                    + theme.manifest.metrics.label_spacing as isize
                     + input_name.len() as isize * theme.font_tile_size.width as isize,
             };
 
@@ -168,8 +174,10 @@ impl MidiMatrixApp {
                 };
 
                 let button_position = PixelPosition {
-                    x: theme.window_margin as isize + input_index as isize * button_dimensions.width as isize,
-                    y: theme.window_margin as isize + output_index as isize * button_dimensions.height as isize,
+                    x: theme.manifest.metrics.window_margin as isize
+                        + input_index as isize * button_dimensions.width as isize,
+                    y: theme.manifest.metrics.window_margin as isize
+                        + output_index as isize * button_dimensions.height as isize,
                 };
 
                 draw_tiles(
@@ -187,19 +195,19 @@ impl MidiMatrixApp {
     }
 
     fn resize_window(&self, canvas: &mut Canvas<Window>, theme: &Theme) -> Result<(), String> {
-        let window_width = theme.window_margin
+        let window_width = theme.manifest.metrics.window_margin
             + self.inputs.len() * (2 * theme.controls_tile_size.width) // Controls
             + theme.controls_tile_size.width // Arrow
-            + theme.label_spacing
+            + theme.manifest.metrics.label_spacing
             + self.outputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) * (theme.font_tile_size.width)
-            + theme.window_margin;
+            + theme.manifest.metrics.window_margin;
 
-        let window_height = theme.window_margin
+        let window_height = theme.manifest.metrics.window_margin
             + self.outputs.len() * (2 * theme.controls_tile_size.height) // Controls
             + theme.controls_tile_size.height // Arrow
-            + theme.label_spacing
+            + theme.manifest.metrics.label_spacing
             + self.inputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) * (theme.font_tile_size.width)
-            + theme.window_margin;
+            + theme.manifest.metrics.window_margin;
 
         let window = canvas.window_mut();
         window
@@ -211,8 +219,8 @@ impl MidiMatrixApp {
 
     fn control_under_position(&self, theme: &Theme, position: PixelPosition) -> Option<(usize, usize)> {
         let (px, py) = (
-            position.x - theme.window_margin as isize,
-            position.y - theme.window_margin as isize,
+            position.x - theme.manifest.metrics.window_margin as isize,
+            position.y - theme.manifest.metrics.window_margin as isize,
         );
 
         if (px < 0) || (py < 0) {
