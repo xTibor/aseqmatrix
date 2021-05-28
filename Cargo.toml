@@ -8,7 +8,6 @@ edition = "2018"
 [dependencies]
 alsa = { git = "https://github.com/xtibor/alsa-rs", branch = "mut" }
 sdl2 = { version = "0.34", features = ["gfx", "image"] }
-toml = "0.5"
 serde = "1.0"
 serde_derive = "1.0"
-
+toml = "0.5"
