@@ -9,6 +9,7 @@ use alsa::seq::{
 use alsa::PollDescriptors;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
+use sdl2::mouse::MouseButton;
 use sdl2::render::Canvas;
 use sdl2::video::Window;
 
@@ -25,6 +26,7 @@ struct MidiMatrixApp {
     outputs: Vec<(Addr, String)>,
     connections: Vec<(Addr, Addr)>,
     selection: Option<(usize, usize)>,
+    mouse_down: bool,
 }
 
 impl MidiMatrixApp {
@@ -34,6 +36,7 @@ impl MidiMatrixApp {
             outputs: Vec::new(),
             connections: Vec::new(),
             selection: None,
+            mouse_down: false,
         }
     }
 
@@ -129,20 +132,34 @@ impl MidiMatrixApp {
 
         for (output_index, (output_addr, _)) in self.outputs.iter().enumerate() {
             for (input_index, (input_addr, _)) in self.inputs.iter().enumerate() {
-                let button_source = if self.connections.contains(&(*input_addr, *output_addr)) {
-                    TileRect {
+                let has_connection = self.connections.contains(&(*input_addr, *output_addr));
+                let currently_down = (self.mouse_down) && (self.selection == Some((input_index, output_index)));
+
+                let button_source = match (currently_down, has_connection) {
+                    (false, true) => TileRect {
                         x: 0,
                         y: 2,
                         width: 2,
                         height: 2,
-                    }
-                } else {
-                    TileRect {
+                    },
+                    (false, false) => TileRect {
                         x: 0,
                         y: 0,
                         width: 2,
                         height: 2,
-                    }
+                    },
+                    (true, true) => TileRect {
+                        x: 2,
+                        y: 2,
+                        width: 2,
+                        height: 2,
+                    },
+                    (true, false) => TileRect {
+                        x: 2,
+                        y: 0,
+                        width: 2,
+                        height: 2,
+                    },
                 };
 
                 let button_position = PixelPosition {
@@ -203,6 +220,23 @@ impl MidiMatrixApp {
         } else {
             None
         }
+    }
+
+    fn update_selection(
+        &mut self,
+        canvas: &mut Canvas<Window>,
+        theme: &Theme,
+        position: PixelPosition,
+        force_redraw: bool,
+    ) -> Result<(), String> {
+        let last_selection = self.selection;
+        self.selection = self.control_under_position(theme, position);
+
+        if (self.selection != last_selection) || force_redraw {
+            self.render(canvas, theme)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -326,22 +360,52 @@ fn main() -> Result<(), String> {
                 }
                 Event::MouseMotion { x, y, .. } => {
                     let mut app = app.lock().unwrap();
-
-                    let last_selection = app.selection;
-                    app.selection = app.control_under_position(
+                    app.update_selection(
+                        &mut canvas,
                         &theme,
                         PixelPosition {
                             x: x as isize,
                             y: y as isize,
                         },
-                    );
-
-                    if app.selection != last_selection {
-                        app.render(&mut canvas, &theme)?;
-                    }
+                        false,
+                    )?;
                 }
-                Event::MouseButtonUp { .. } => {
-                    let app = app.lock().unwrap();
+                Event::MouseButtonDown {
+                    x,
+                    y,
+                    mouse_btn: MouseButton::Left,
+                    ..
+                } => {
+                    let mut app = app.lock().unwrap();
+                    app.mouse_down = true;
+                    app.update_selection(
+                        &mut canvas,
+                        &theme,
+                        PixelPosition {
+                            x: x as isize,
+                            y: y as isize,
+                        },
+                        true,
+                    )?;
+                }
+                Event::MouseButtonUp {
+                    x,
+                    y,
+                    mouse_btn: MouseButton::Left,
+                    ..
+                } => {
+                    let mut app = app.lock().unwrap();
+                    app.mouse_down = false;
+                    app.update_selection(
+                        &mut canvas,
+                        &theme,
+                        PixelPosition {
+                            x: x as isize,
+                            y: y as isize,
+                        },
+                        true,
+                    )?;
+
                     if let Some((selection_x, selection_y)) = app.selection {
                         // assert!(selection in bounds)
                         let input_addr = app.inputs[selection_x].0;
