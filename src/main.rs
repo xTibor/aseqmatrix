@@ -6,14 +6,15 @@ use sdl2::keyboard::Keycode;
 use sdl2::render::Canvas;
 use sdl2::video::Window;
 use std::ffi::CString;
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
 mod graphics;
 use graphics::{draw_string, draw_tiled_background, draw_tiles, PixelDimension, PixelPosition, TileRect};
 
-mod skin;
-use skin::Skin;
+mod theme;
+use theme::Theme;
 
 struct MidiPortChangeEvent;
 
@@ -34,17 +35,17 @@ impl MidiMatrixApp {
         }
     }
 
-    fn render(&self, canvas: &mut Canvas<Window>, skin: &Skin) -> Result<(), String> {
-        draw_tiled_background(canvas, &skin.background_texture)?;
+    fn render(&self, canvas: &mut Canvas<Window>, theme: &Theme) -> Result<(), String> {
+        draw_tiled_background(canvas, &theme.background_texture)?;
 
         let button_dimensions = PixelDimension {
-            width: skin.controls_tile_size.width * 2,
-            height: skin.controls_tile_size.height * 2,
+            width: theme.controls_tile_size.width * 2,
+            height: theme.controls_tile_size.height * 2,
         };
 
         let (horizontal_arrow_width, vertical_arrow_height) = (
-            skin.controls_tile_size.width as isize,
-            skin.controls_tile_size.height as isize,
+            theme.controls_tile_size.width as isize,
+            theme.controls_tile_size.height as isize,
         );
 
         for (output_index, (_, output_name)) in self.outputs.iter().enumerate() {
@@ -68,28 +69,28 @@ impl MidiMatrixApp {
             };
 
             let arrow_position = PixelPosition {
-                x: skin.window_margin as isize + self.inputs.len() as isize * button_dimensions.width as isize,
-                y: skin.window_margin as isize + output_index as isize * button_dimensions.height as isize,
+                x: theme.window_margin as isize + self.inputs.len() as isize * button_dimensions.width as isize,
+                y: theme.window_margin as isize + output_index as isize * button_dimensions.height as isize,
             };
 
             let text_position = PixelPosition {
-                x: arrow_position.x + horizontal_arrow_width + skin.label_spacing as isize,
-                y: arrow_position.y + (button_dimensions.height as isize - skin.font_tile_size.height as isize) / 2,
+                x: arrow_position.x + horizontal_arrow_width + theme.label_spacing as isize,
+                y: arrow_position.y + (button_dimensions.height as isize - theme.font_tile_size.height as isize) / 2,
             };
 
             draw_tiles(
                 canvas,
-                &skin.controls_texture,
-                skin.controls_tile_size,
+                &theme.controls_texture,
+                theme.controls_tile_size,
                 arrow_source,
                 arrow_position,
             )?;
 
             draw_string(
                 canvas,
-                &skin.font_texture,
-                skin.font_tile_size,
-                skin.font_tiles_per_dimension,
+                &theme.font_texture,
+                theme.font_tile_size,
+                theme.font_tiles_per_dimension,
                 output_name,
                 text_position,
                 0,
@@ -117,31 +118,31 @@ impl MidiMatrixApp {
             };
 
             let arrow_position = PixelPosition {
-                x: skin.window_margin as isize + input_index as isize * button_dimensions.width as isize,
-                y: skin.window_margin as isize + self.outputs.len() as isize * button_dimensions.height as isize,
+                x: theme.window_margin as isize + input_index as isize * button_dimensions.width as isize,
+                y: theme.window_margin as isize + self.outputs.len() as isize * button_dimensions.height as isize,
             };
 
             let text_position = PixelPosition {
-                x: arrow_position.x + (button_dimensions.width as isize - skin.font_tile_size.width as isize) / 2,
+                x: arrow_position.x + (button_dimensions.width as isize - theme.font_tile_size.width as isize) / 2,
                 y: arrow_position.y
                     + vertical_arrow_height
-                    + skin.label_spacing as isize
-                    + input_name.len() as isize * skin.font_tile_size.width as isize,
+                    + theme.label_spacing as isize
+                    + input_name.len() as isize * theme.font_tile_size.width as isize,
             };
 
             draw_tiles(
                 canvas,
-                &skin.controls_texture,
-                skin.controls_tile_size,
+                &theme.controls_texture,
+                theme.controls_tile_size,
                 arrow_source,
                 arrow_position,
             )?;
 
             draw_string(
                 canvas,
-                &skin.font_texture,
-                skin.font_tile_size,
-                skin.font_tiles_per_dimension,
+                &theme.font_texture,
+                theme.font_tile_size,
+                theme.font_tiles_per_dimension,
                 input_name,
                 text_position,
                 3,
@@ -167,14 +168,14 @@ impl MidiMatrixApp {
                 };
 
                 let button_position = PixelPosition {
-                    x: skin.window_margin as isize + input_index as isize * button_dimensions.width as isize,
-                    y: skin.window_margin as isize + output_index as isize * button_dimensions.height as isize,
+                    x: theme.window_margin as isize + input_index as isize * button_dimensions.width as isize,
+                    y: theme.window_margin as isize + output_index as isize * button_dimensions.height as isize,
                 };
 
                 draw_tiles(
                     canvas,
-                    &skin.controls_texture,
-                    skin.controls_tile_size,
+                    &theme.controls_texture,
+                    theme.controls_tile_size,
                     button_source,
                     button_position,
                 )?;
@@ -185,20 +186,20 @@ impl MidiMatrixApp {
         Ok(())
     }
 
-    fn resize_window(&self, canvas: &mut Canvas<Window>, skin: &Skin) -> Result<(), String> {
-        let window_width = skin.window_margin
-            + self.inputs.len() * (2 * skin.controls_tile_size.width) // Controls
-            + skin.controls_tile_size.width // Arrow
-            + skin.label_spacing
-            + self.outputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) * (skin.font_tile_size.width)
-            + skin.window_margin;
+    fn resize_window(&self, canvas: &mut Canvas<Window>, theme: &Theme) -> Result<(), String> {
+        let window_width = theme.window_margin
+            + self.inputs.len() * (2 * theme.controls_tile_size.width) // Controls
+            + theme.controls_tile_size.width // Arrow
+            + theme.label_spacing
+            + self.outputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) * (theme.font_tile_size.width)
+            + theme.window_margin;
 
-        let window_height = skin.window_margin
-            + self.outputs.len() * (2 * skin.controls_tile_size.height) // Controls
-            + skin.controls_tile_size.height // Arrow
-            + skin.label_spacing
-            + self.inputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) * (skin.font_tile_size.width)
-            + skin.window_margin;
+        let window_height = theme.window_margin
+            + self.outputs.len() * (2 * theme.controls_tile_size.height) // Controls
+            + theme.controls_tile_size.height // Arrow
+            + theme.label_spacing
+            + self.inputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) * (theme.font_tile_size.width)
+            + theme.window_margin;
 
         let window = canvas.window_mut();
         window
@@ -208,10 +209,10 @@ impl MidiMatrixApp {
         Ok(())
     }
 
-    fn control_under_position(&self, skin: &Skin, position: PixelPosition) -> Option<(usize, usize)> {
+    fn control_under_position(&self, theme: &Theme, position: PixelPosition) -> Option<(usize, usize)> {
         let (px, py) = (
-            position.x - skin.window_margin as isize,
-            position.y - skin.window_margin as isize,
+            position.x - theme.window_margin as isize,
+            position.y - theme.window_margin as isize,
         );
 
         if (px < 0) || (py < 0) {
@@ -219,8 +220,8 @@ impl MidiMatrixApp {
         }
 
         let (control_x, control_y) = (
-            px as usize / (skin.controls_tile_size.width * 2),
-            py as usize / (skin.controls_tile_size.height * 2),
+            px as usize / (theme.controls_tile_size.width * 2),
+            py as usize / (theme.controls_tile_size.height * 2),
         );
 
         if (control_x < self.inputs.len()) && (control_y < self.outputs.len()) {
@@ -245,15 +246,15 @@ fn main() -> Result<(), String> {
 
     let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
     let texture_creator = canvas.texture_creator();
-    let mut skin = Skin::new(&texture_creator, "amber")?;
+    let mut theme = Theme::new(&texture_creator, Path::new("themes/amber/theme.toml"))?;
 
     {
         let app = app.lock().unwrap();
-        app.resize_window(&mut canvas, &skin)?;
+        app.resize_window(&mut canvas, &theme)?;
         // This double rendering is a workaround for the screen corruption after
         // resizing the window. Double buffering seems to be fucked in SDL2.
-        app.render(&mut canvas, &skin)?;
-        app.render(&mut canvas, &skin)?;
+        app.render(&mut canvas, &theme)?;
+        app.render(&mut canvas, &theme)?;
     }
 
     let sdl_event = sdl_context.event()?;
@@ -354,7 +355,7 @@ fn main() -> Result<(), String> {
 
                     let last_selection = app.selection;
                     app.selection = app.control_under_position(
-                        &skin,
+                        &theme,
                         PixelPosition {
                             x: x as isize,
                             y: y as isize,
@@ -362,7 +363,7 @@ fn main() -> Result<(), String> {
                     );
 
                     if app.selection != last_selection {
-                        app.render(&mut canvas, &skin)?;
+                        app.render(&mut canvas, &theme)?;
                     }
                 }
                 Event::MouseButtonUp { .. } => {
@@ -387,9 +388,9 @@ fn main() -> Result<(), String> {
                 Event::User { .. } => {
                     // TODO: Check user_event kind
                     let app = app.lock().unwrap();
-                    app.resize_window(&mut canvas, &skin)?;
-                    app.render(&mut canvas, &skin)?;
-                    app.render(&mut canvas, &skin)?;
+                    app.resize_window(&mut canvas, &theme)?;
+                    app.render(&mut canvas, &theme)?;
+                    app.render(&mut canvas, &theme)?;
                 }
 
                 Event::KeyDown {
@@ -397,10 +398,10 @@ fn main() -> Result<(), String> {
                     ..
                 } => {
                     let app = app.lock().unwrap();
-                    skin = Skin::new(&texture_creator, "test")?;
-                    app.resize_window(&mut canvas, &skin)?;
-                    app.render(&mut canvas, &skin)?;
-                    app.render(&mut canvas, &skin)?;
+                    theme = Theme::new(&texture_creator, Path::new("themes/test/theme.toml"))?;
+                    app.resize_window(&mut canvas, &theme)?;
+                    app.render(&mut canvas, &theme)?;
+                    app.render(&mut canvas, &theme)?;
                 }
 
                 _ => {}
