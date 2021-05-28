@@ -1,6 +1,9 @@
+use std::path::Path;
+
+use sdl2::image::LoadTexture;
 use sdl2::rect::{Point, Rect};
-use sdl2::render::{Canvas, Texture};
-use sdl2::video::Window;
+use sdl2::render::{Canvas, Texture, TextureCreator};
+use sdl2::video::{Window, WindowContext};
 
 #[derive(Copy, Clone, Debug)]
 pub struct PixelPosition {
@@ -34,37 +37,64 @@ pub struct TileRect {
     pub height: usize,
 }
 
+pub struct TileTexture<'a> {
+    pub texture: Texture<'a>,
+    pub tile_size: PixelDimension,
+    pub tiles_per_dimension: TileDimension,
+}
+
+impl<'a> TileTexture<'a> {
+    pub fn new<P: AsRef<Path>>(
+        texture_creator: &'a TextureCreator<WindowContext>,
+        texture_path: P,
+        tiles_per_dimension: TileDimension,
+    ) -> Result<TileTexture<'a>, String> {
+        let texture = texture_creator.load_texture(texture_path)?;
+
+        let tile_size = {
+            let query = texture.query();
+            PixelDimension {
+                width: query.width as usize / tiles_per_dimension.width,
+                height: query.height as usize / tiles_per_dimension.height,
+            }
+        };
+
+        Ok(TileTexture {
+            texture,
+            tile_size,
+            tiles_per_dimension,
+        })
+    }
+}
+
 pub fn draw_tiles(
     canvas: &mut Canvas<Window>,
-    texture: &Texture,
-    tile_size: PixelDimension,
+    tile_texture: &TileTexture,
     source: TileRect,
     target: PixelPosition,
 ) -> Result<(), String> {
     let source_rect = Rect::new(
-        source.x as i32 * tile_size.width as i32,
-        source.y as i32 * tile_size.height as i32,
-        source.width as u32 * tile_size.width as u32,
-        source.height as u32 * tile_size.height as u32,
+        source.x as i32 * tile_texture.tile_size.width as i32,
+        source.y as i32 * tile_texture.tile_size.height as i32,
+        source.width as u32 * tile_texture.tile_size.width as u32,
+        source.height as u32 * tile_texture.tile_size.height as u32,
     );
 
     let target_rect = Rect::new(
         target.x as i32,
         target.y as i32,
-        source.width as u32 * tile_size.width as u32,
-        source.height as u32 * tile_size.height as u32,
+        source.width as u32 * tile_texture.tile_size.width as u32,
+        source.height as u32 * tile_texture.tile_size.height as u32,
     );
 
-    canvas.copy(&texture, source_rect, target_rect)?;
+    canvas.copy(&tile_texture.texture, source_rect, target_rect)?;
 
     Ok(())
 }
 
 pub fn draw_character(
     canvas: &mut Canvas<Window>,
-    texture: &Texture,
-    tile_size: PixelDimension,
-    tiles_per_dimension: TileDimension,
+    tile_texture: &TileTexture,
     character: char,
     target: PixelPosition,
     rotation: usize,
@@ -76,26 +106,26 @@ pub fn draw_character(
             character as usize
         };
         let tile_position = TilePosition {
-            x: tile_index % tiles_per_dimension.width,
-            y: tile_index / tiles_per_dimension.width,
+            x: tile_index % tile_texture.tiles_per_dimension.width,
+            y: tile_index / tile_texture.tiles_per_dimension.width,
         };
         Rect::new(
-            tile_position.x as i32 * tile_size.width as i32,
-            tile_position.y as i32 * tile_size.height as i32,
-            tile_size.width as u32,
-            tile_size.height as u32,
+            tile_position.x as i32 * tile_texture.tile_size.width as i32,
+            tile_position.y as i32 * tile_texture.tile_size.height as i32,
+            tile_texture.tile_size.width as u32,
+            tile_texture.tile_size.height as u32,
         )
     };
 
     let target_rect = Rect::new(
         target.x as i32,
         target.y as i32,
-        tile_size.width as u32,
-        tile_size.height as u32,
+        tile_texture.tile_size.width as u32,
+        tile_texture.tile_size.height as u32,
     );
 
     canvas.copy_ex(
-        &texture,
+        &tile_texture.texture,
         source_rect,
         target_rect,
         90.0 * rotation as f64,
@@ -109,27 +139,23 @@ pub fn draw_character(
 
 pub fn draw_string(
     canvas: &mut Canvas<Window>,
-    texture: &Texture,
-    tile_size: PixelDimension,
-    tiles_per_dimension: TileDimension,
+    tile_texture: &TileTexture,
     string: &str,
     target: PixelPosition,
     rotation: usize,
 ) -> Result<(), String> {
     let (dx, dy) = match rotation {
-        0 => (tile_size.width as isize, 0),
-        1 => (0, tile_size.width as isize),
-        2 => (-(tile_size.width as isize), 0),
-        3 => (0, -(tile_size.width as isize)),
+        0 => (tile_texture.tile_size.width as isize, 0),
+        1 => (0, tile_texture.tile_size.width as isize),
+        2 => (-(tile_texture.tile_size.width as isize), 0),
+        3 => (0, -(tile_texture.tile_size.width as isize)),
         _ => unreachable!(),
     };
 
     for (index, character) in string.chars().enumerate() {
         draw_character(
             canvas,
-            texture,
-            tile_size,
-            tiles_per_dimension,
+            tile_texture,
             character,
             PixelPosition {
                 x: target.x + index as isize * dx,

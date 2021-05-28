@@ -41,13 +41,13 @@ impl MidiMatrixApp {
         draw_tiled_background(canvas, &theme.background_texture)?;
 
         let button_dimensions = PixelDimension {
-            width: theme.controls_tile_size.width * 2,
-            height: theme.controls_tile_size.height * 2,
+            width: theme.controls_texture.tile_size.width * 2,
+            height: theme.controls_texture.tile_size.height * 2,
         };
 
         let (horizontal_arrow_width, vertical_arrow_height) = (
-            theme.controls_tile_size.width as isize,
-            theme.controls_tile_size.height as isize,
+            theme.controls_texture.tile_size.width as isize,
+            theme.controls_texture.tile_size.height as isize,
         );
 
         for (output_index, (_, output_name)) in self.outputs.iter().enumerate() {
@@ -79,26 +79,12 @@ impl MidiMatrixApp {
 
             let text_position = PixelPosition {
                 x: arrow_position.x + horizontal_arrow_width + theme.manifest.metrics.label_spacing as isize,
-                y: arrow_position.y + (button_dimensions.height as isize - theme.font_tile_size.height as isize) / 2,
+                y: arrow_position.y
+                    + (button_dimensions.height as isize - theme.font_texture.tile_size.height as isize) / 2,
             };
 
-            draw_tiles(
-                canvas,
-                &theme.controls_texture,
-                theme.controls_tile_size,
-                arrow_source,
-                arrow_position,
-            )?;
-
-            draw_string(
-                canvas,
-                &theme.font_texture,
-                theme.font_tile_size,
-                theme.font_tiles_per_dimension,
-                output_name,
-                text_position,
-                0,
-            )?;
+            draw_tiles(canvas, &theme.controls_texture, arrow_source, arrow_position)?;
+            draw_string(canvas, &theme.font_texture, output_name, text_position, 0)?;
         }
 
         for (input_index, (_, input_name)) in self.inputs.iter().enumerate() {
@@ -129,30 +115,16 @@ impl MidiMatrixApp {
             };
 
             let text_position = PixelPosition {
-                x: arrow_position.x + (button_dimensions.width as isize - theme.font_tile_size.width as isize) / 2,
+                x: arrow_position.x
+                    + (button_dimensions.width as isize - theme.font_texture.tile_size.width as isize) / 2,
                 y: arrow_position.y
                     + vertical_arrow_height
                     + theme.manifest.metrics.label_spacing as isize
-                    + input_name.len() as isize * theme.font_tile_size.width as isize,
+                    + input_name.len() as isize * theme.font_texture.tile_size.width as isize,
             };
 
-            draw_tiles(
-                canvas,
-                &theme.controls_texture,
-                theme.controls_tile_size,
-                arrow_source,
-                arrow_position,
-            )?;
-
-            draw_string(
-                canvas,
-                &theme.font_texture,
-                theme.font_tile_size,
-                theme.font_tiles_per_dimension,
-                input_name,
-                text_position,
-                3,
-            )?;
+            draw_tiles(canvas, &theme.controls_texture, arrow_source, arrow_position)?;
+            draw_string(canvas, &theme.font_texture, input_name, text_position, 3)?;
         }
 
         for (output_index, (output_addr, _)) in self.outputs.iter().enumerate() {
@@ -180,13 +152,7 @@ impl MidiMatrixApp {
                         + output_index as isize * button_dimensions.height as isize,
                 };
 
-                draw_tiles(
-                    canvas,
-                    &theme.controls_texture,
-                    theme.controls_tile_size,
-                    button_source,
-                    button_position,
-                )?;
+                draw_tiles(canvas, &theme.controls_texture, button_source, button_position)?;
             }
         }
 
@@ -196,17 +162,17 @@ impl MidiMatrixApp {
 
     fn resize_window(&self, canvas: &mut Canvas<Window>, theme: &Theme) -> Result<(), String> {
         let window_width = theme.manifest.metrics.window_margin
-            + self.inputs.len() * (2 * theme.controls_tile_size.width) // Controls
-            + theme.controls_tile_size.width // Arrow
+            + self.inputs.len() * (2 * theme.controls_texture.tile_size.width) // Controls
+            + theme.controls_texture.tile_size.width // Arrow
             + theme.manifest.metrics.label_spacing
-            + self.outputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) * (theme.font_tile_size.width)
+            + self.outputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) * (theme.font_texture.tile_size.width)
             + theme.manifest.metrics.window_margin;
 
         let window_height = theme.manifest.metrics.window_margin
-            + self.outputs.len() * (2 * theme.controls_tile_size.height) // Controls
-            + theme.controls_tile_size.height // Arrow
+            + self.outputs.len() * (2 * theme.controls_texture.tile_size.height) // Controls
+            + theme.controls_texture.tile_size.height // Arrow
             + theme.manifest.metrics.label_spacing
-            + self.inputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) * (theme.font_tile_size.width)
+            + self.inputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) * (theme.font_texture.tile_size.width)
             + theme.manifest.metrics.window_margin;
 
         let window = canvas.window_mut();
@@ -228,8 +194,8 @@ impl MidiMatrixApp {
         }
 
         let (control_x, control_y) = (
-            px as usize / (theme.controls_tile_size.width * 2),
-            py as usize / (theme.controls_tile_size.height * 2),
+            px as usize / (theme.controls_texture.tile_size.width * 2),
+            py as usize / (theme.controls_texture.tile_size.height * 2),
         );
 
         if (control_x < self.inputs.len()) && (control_y < self.outputs.len()) {
