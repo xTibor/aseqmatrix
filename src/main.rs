@@ -203,6 +203,7 @@ fn main() -> Result<(), String> {
 
     let video_subsys = sdl_context.video()?;
     video_subsys.enable_screen_saver();
+    sdl2::hint::set("SDL_MOUSE_FOCUS_CLICKTHROUGH", "1");
 
     let window =
         video_subsys.window("MIDI Matrix", 640, 480).position_centered().opengl().build().map_err(|e| e.to_string())?;
@@ -354,7 +355,6 @@ fn main() -> Result<(), String> {
                         }
                     }
                 }
-
                 Event::User { .. } => {
                     // TODO: Check user_event kind
                     let app = app.lock().unwrap();
@@ -362,7 +362,6 @@ fn main() -> Result<(), String> {
                     app.render(&mut canvas, &theme)?;
                     app.render(&mut canvas, &theme)?;
                 }
-
                 Event::KeyDown { keycode: Some(Keycode::F12), .. } => {
                     let app = app.lock().unwrap();
                     theme = Theme::new(&texture_creator, Path::new("themes/test/theme.toml"))?;
@@ -370,7 +369,6 @@ fn main() -> Result<(), String> {
                     app.render(&mut canvas, &theme)?;
                     app.render(&mut canvas, &theme)?;
                 }
-
                 _ => {}
             }
         }
