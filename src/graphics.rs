@@ -59,11 +59,7 @@ impl<'a> TileTexture<'a> {
             }
         };
 
-        Ok(TileTexture {
-            texture,
-            tile_size,
-            tiles_per_dimension,
-        })
+        Ok(TileTexture { texture, tile_size, tiles_per_dimension })
     }
 }
 
@@ -100,11 +96,7 @@ pub fn draw_character(
     rotation: usize,
 ) -> Result<(), String> {
     let source_rect = {
-        let tile_index = if (character <= '\u{001F}') || (character >= '\u{0080}') {
-            0x7F
-        } else {
-            character as usize
-        };
+        let tile_index = if (character <= '\u{001F}') || (character >= '\u{0080}') { 0x7F } else { character as usize };
         let tile_position = TilePosition {
             x: tile_index % tile_texture.tiles_per_dimension.width,
             y: tile_index / tile_texture.tiles_per_dimension.width,
@@ -157,10 +149,7 @@ pub fn draw_string(
             canvas,
             tile_texture,
             character,
-            PixelPosition {
-                x: target.x + index as isize * dx,
-                y: target.y + index as isize * dy,
-            },
+            PixelPosition { x: target.x + index as isize * dx, y: target.y + index as isize * dy },
             rotation,
         )?;
     }

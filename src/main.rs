@@ -48,29 +48,17 @@ impl MidiMatrixApp {
             height: theme.controls_texture.tile_size.height * 2,
         };
 
-        let (horizontal_arrow_width, vertical_arrow_height) = (
-            theme.controls_texture.tile_size.width as isize,
-            theme.controls_texture.tile_size.height as isize,
-        );
+        let (horizontal_arrow_width, vertical_arrow_height) =
+            (theme.controls_texture.tile_size.width as isize, theme.controls_texture.tile_size.height as isize);
 
         for (output_index, (_, output_name)) in self.outputs.iter().enumerate() {
             let arrow_source = if match self.selection {
                 Some((_, selection_y)) => selection_y == output_index,
                 _ => false,
             } {
-                TileRect {
-                    x: 5,
-                    y: 2,
-                    width: 1,
-                    height: 2,
-                }
+                TileRect { x: 5, y: 2, width: 1, height: 2 }
             } else {
-                TileRect {
-                    x: 5,
-                    y: 0,
-                    width: 1,
-                    height: 2,
-                }
+                TileRect { x: 5, y: 0, width: 1, height: 2 }
             };
 
             let arrow_position = PixelPosition {
@@ -95,19 +83,9 @@ impl MidiMatrixApp {
                 Some((selection_x, _)) => selection_x == input_index,
                 _ => false,
             } {
-                TileRect {
-                    x: 6,
-                    y: 3,
-                    width: 2,
-                    height: 1,
-                }
+                TileRect { x: 6, y: 3, width: 2, height: 1 }
             } else {
-                TileRect {
-                    x: 6,
-                    y: 1,
-                    width: 2,
-                    height: 1,
-                }
+                TileRect { x: 6, y: 1, width: 2, height: 1 }
             };
 
             let arrow_position = PixelPosition {
@@ -136,30 +114,10 @@ impl MidiMatrixApp {
                 let currently_down = (self.mouse_down) && (self.selection == Some((input_index, output_index)));
 
                 let button_source = match (currently_down, has_connection) {
-                    (false, true) => TileRect {
-                        x: 0,
-                        y: 2,
-                        width: 2,
-                        height: 2,
-                    },
-                    (false, false) => TileRect {
-                        x: 0,
-                        y: 0,
-                        width: 2,
-                        height: 2,
-                    },
-                    (true, true) => TileRect {
-                        x: 2,
-                        y: 2,
-                        width: 2,
-                        height: 2,
-                    },
-                    (true, false) => TileRect {
-                        x: 2,
-                        y: 0,
-                        width: 2,
-                        height: 2,
-                    },
+                    (false, true) => TileRect { x: 0, y: 2, width: 2, height: 2 },
+                    (false, false) => TileRect { x: 0, y: 0, width: 2, height: 2 },
+                    (true, true) => TileRect { x: 2, y: 2, width: 2, height: 2 },
+                    (true, false) => TileRect { x: 2, y: 0, width: 2, height: 2 },
                 };
 
                 let button_position = PixelPosition {
@@ -193,9 +151,7 @@ impl MidiMatrixApp {
             + theme.manifest.metrics.window_margin;
 
         let window = canvas.window_mut();
-        window
-            .set_size(window_width as u32, window_height as u32)
-            .map_err(|e| e.to_string())?;
+        window.set_size(window_width as u32, window_height as u32).map_err(|e| e.to_string())?;
 
         Ok(())
     }
@@ -248,12 +204,8 @@ fn main() -> Result<(), String> {
     let video_subsys = sdl_context.video()?;
     video_subsys.enable_screen_saver();
 
-    let window = video_subsys
-        .window("MIDI Matrix", 640, 480)
-        .position_centered()
-        .opengl()
-        .build()
-        .map_err(|e| e.to_string())?;
+    let window =
+        video_subsys.window("MIDI Matrix", 640, 480).position_centered().opengl().build().map_err(|e| e.to_string())?;
 
     let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
     let texture_creator = canvas.texture_creator();
@@ -354,31 +306,14 @@ fn main() -> Result<(), String> {
         for event in events.wait_iter() {
             //println!("{:?}", event);
             match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => {
+                Event::Quit { .. } | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                     break 'main;
                 }
                 Event::MouseMotion { x, y, .. } => {
                     let mut app = app.lock().unwrap();
-                    app.update_selection(
-                        &mut canvas,
-                        &theme,
-                        PixelPosition {
-                            x: x as isize,
-                            y: y as isize,
-                        },
-                        false,
-                    )?;
+                    app.update_selection(&mut canvas, &theme, PixelPosition { x: x as isize, y: y as isize }, false)?;
                 }
-                Event::MouseButtonDown {
-                    x,
-                    y,
-                    mouse_btn: MouseButton::Left,
-                    ..
-                } => {
+                Event::MouseButtonDown { x, y, mouse_btn: MouseButton::Left, .. } => {
                     let mut app = app.lock().unwrap();
 
                     if app.selection.is_some() {
@@ -386,30 +321,19 @@ fn main() -> Result<(), String> {
                         app.update_selection(
                             &mut canvas,
                             &theme,
-                            PixelPosition {
-                                x: x as isize,
-                                y: y as isize,
-                            },
+                            PixelPosition { x: x as isize, y: y as isize },
                             true,
                         )?;
                     }
                 }
-                Event::MouseButtonUp {
-                    x,
-                    y,
-                    mouse_btn: MouseButton::Left,
-                    ..
-                } => {
+                Event::MouseButtonUp { x, y, mouse_btn: MouseButton::Left, .. } => {
                     let mut app = app.lock().unwrap();
                     if app.mouse_down {
                         app.mouse_down = false;
                         app.update_selection(
                             &mut canvas,
                             &theme,
-                            PixelPosition {
-                                x: x as isize,
-                                y: y as isize,
-                            },
+                            PixelPosition { x: x as isize, y: y as isize },
                             true,
                         )?;
 
@@ -439,10 +363,7 @@ fn main() -> Result<(), String> {
                     app.render(&mut canvas, &theme)?;
                 }
 
-                Event::KeyDown {
-                    keycode: Some(Keycode::F12),
-                    ..
-                } => {
+                Event::KeyDown { keycode: Some(Keycode::F12), .. } => {
                     let app = app.lock().unwrap();
                     theme = Theme::new(&texture_creator, Path::new("themes/test/theme.toml"))?;
                     app.resize_window(&mut canvas, &theme)?;

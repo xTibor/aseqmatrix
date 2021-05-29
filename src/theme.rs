@@ -57,11 +57,6 @@ impl<'a> Theme<'a> {
             TileDimension { width: 16, height: 8 },
         )?;
 
-        Ok(Theme {
-            manifest,
-            background_texture,
-            controls_texture,
-            font_texture,
-        })
+        Ok(Theme { manifest, background_texture, controls_texture, font_texture })
     }
 }
