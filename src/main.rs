@@ -205,8 +205,7 @@ fn main() -> Result<(), String> {
     video_subsys.enable_screen_saver();
     sdl2::hint::set("SDL_MOUSE_FOCUS_CLICKTHROUGH", "1");
 
-    let window =
-        video_subsys.window("MIDI Matrix", 640, 480).position_centered().opengl().build().map_err(|e| e.to_string())?;
+    let window = video_subsys.window("MIDI Matrix", 640, 480).position_centered().hidden().build().map_err(|e| e.to_string())?;
 
     let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
     let texture_creator = canvas.texture_creator();
@@ -219,6 +218,9 @@ fn main() -> Result<(), String> {
         // resizing the window. Double buffering seems to be fucked in SDL2.
         app.render(&mut canvas, &theme)?;
         app.render(&mut canvas, &theme)?;
+
+        // Window was created as hidden to avoid flickering during the initial resize
+        canvas.window_mut().show();
     }
 
     let sdl_event = sdl_context.event()?;
@@ -282,8 +284,10 @@ fn main() -> Result<(), String> {
             loop {
                 if seq_input.event_input_pending(true).unwrap() > 0 {
                     let event = seq_input.event_input().unwrap();
-
-                    // TODO: filter events from this client
+                    //println!("{:?}", event);
+                    // TODO: Filter events from this client
+                    // TODO: Why doesn't the system announcement port send any events
+                    //  about a port getting renamed under `EventType::PortChange`?
                     match event.get_type() {
                         alsa::seq::EventType::PortChange
                         | alsa::seq::EventType::PortExit
