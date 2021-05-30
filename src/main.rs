@@ -1,7 +1,7 @@
 use std::ffi::CString;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use std::thread;
+use std::{thread, time};
 
 use alsa::seq::{
     Addr, ClientIter, PortCap, PortInfo, PortIter, PortSubscribe, PortSubscribeIter, PortType, QuerySubsType, Seq,
@@ -153,6 +153,9 @@ impl MidiMatrixApp {
         let window = canvas.window_mut();
         window.set_size(window_width as u32, window_height as u32).map_err(|e| e.to_string())?;
 
+        // Workaround for SDL2 corrupting things right after resizing the window.
+        thread::sleep(time::Duration::from_millis(20));
+
         Ok(())
     }
 
@@ -205,7 +208,8 @@ fn main() -> Result<(), String> {
     video_subsys.enable_screen_saver();
     sdl2::hint::set("SDL_MOUSE_FOCUS_CLICKTHROUGH", "1");
 
-    let window = video_subsys.window("MIDI Matrix", 640, 480).position_centered().hidden().build().map_err(|e| e.to_string())?;
+    let window =
+        video_subsys.window("MIDI Matrix", 640, 480).position_centered().hidden().build().map_err(|e| e.to_string())?;
 
     let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
     let texture_creator = canvas.texture_creator();
@@ -214,9 +218,6 @@ fn main() -> Result<(), String> {
     {
         let app = app.lock().unwrap();
         app.resize_window(&mut canvas, &theme)?;
-        // This double rendering is a workaround for the screen corruption after
-        // resizing the window. Double buffering seems to be fucked in SDL2.
-        app.render(&mut canvas, &theme)?;
         app.render(&mut canvas, &theme)?;
 
         // Window was created as hidden to avoid flickering during the initial resize
@@ -364,13 +365,11 @@ fn main() -> Result<(), String> {
                     let app = app.lock().unwrap();
                     app.resize_window(&mut canvas, &theme)?;
                     app.render(&mut canvas, &theme)?;
-                    app.render(&mut canvas, &theme)?;
                 }
                 Event::KeyDown { keycode: Some(Keycode::F12), .. } => {
                     let app = app.lock().unwrap();
                     theme = Theme::new(&texture_creator, Path::new("themes/test/theme.toml"))?;
                     app.resize_window(&mut canvas, &theme)?;
-                    app.render(&mut canvas, &theme)?;
                     app.render(&mut canvas, &theme)?;
                 }
                 _ => {}
