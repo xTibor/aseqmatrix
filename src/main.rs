@@ -346,6 +346,11 @@ fn main() -> Result<(), String> {
                                 if app.connections.contains(&(input_addr, output_addr)) {
                                     seq.unsubscribe_port(input_addr, output_addr).unwrap();
                                 } else {
+                                    // Remove the reverse direction connection first to avoid feedback loops
+                                    if app.connections.contains(&(output_addr, input_addr)) {
+                                        seq.unsubscribe_port(output_addr, input_addr).unwrap();
+                                    }
+
                                     let mut sub = PortSubscribe::empty().unwrap();
                                     sub.set_sender(input_addr);
                                     sub.set_dest(output_addr);
