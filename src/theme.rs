@@ -6,7 +6,7 @@ use sdl2::render::{Texture, TextureCreator};
 use sdl2::video::WindowContext;
 use serde_derive::Deserialize;
 
-use crate::graphics::{TileDimension, TileTexture};
+use crate::graphics::{TileDimension, TileRect, TileTexture};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -40,6 +40,17 @@ pub struct Theme<'a> {
 }
 
 impl<'a> Theme<'a> {
+    pub const RECT_ARROW_LEFT_NORMAL: TileRect = TileRect { x: 5, y: 0, width: 1, height: 2 };
+    pub const RECT_ARROW_LEFT_ACTIVE: TileRect = TileRect { x: 5, y: 2, width: 1, height: 2 };
+
+    pub const RECT_ARROW_DOWN_NORMAL: TileRect = TileRect { x: 6, y: 1, width: 2, height: 1 };
+    pub const RECT_ARROW_DOWN_ACTIVE: TileRect = TileRect { x: 6, y: 3, width: 2, height: 1 };
+
+    pub const RECT_BUTTON_NORMAL: TileRect = TileRect { x: 0, y: 0, width: 2, height: 2 };
+    pub const RECT_BUTTON_ACTIVE: TileRect = TileRect { x: 0, y: 2, width: 2, height: 2 };
+    pub const RECT_BUTTON_NORMAL_DOWN: TileRect = TileRect { x: 2, y: 0, width: 2, height: 2 };
+    pub const RECT_BUTTON_ACTIVE_DOWN: TileRect = TileRect { x: 2, y: 2, width: 2, height: 2 };
+
     pub fn new(texture_creator: &'a TextureCreator<WindowContext>, manifest_path: &Path) -> Result<Theme<'a>, String> {
         // TODO: check width, height mod
         let manifest = toml::from_slice(&fs::read(manifest_path).unwrap()).unwrap();

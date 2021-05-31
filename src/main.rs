@@ -14,7 +14,7 @@ use sdl2::render::Canvas;
 use sdl2::video::Window;
 
 mod graphics;
-use graphics::{draw_string, draw_tiled_background, draw_tiles, PixelDimension, PixelPosition, TileRect};
+use graphics::{draw_string, draw_tiled_background, draw_tiles, PixelDimension, PixelPosition};
 
 mod theme;
 use theme::Theme;
@@ -52,13 +52,9 @@ impl MidiMatrixApp {
             (theme.controls_texture.tile_size.width as isize, theme.controls_texture.tile_size.height as isize);
 
         for (output_index, (_, output_name)) in self.outputs.iter().enumerate() {
-            let arrow_source = if match self.selection {
-                Some((_, selection_y)) => selection_y == output_index,
-                _ => false,
-            } {
-                TileRect { x: 5, y: 2, width: 1, height: 2 }
-            } else {
-                TileRect { x: 5, y: 0, width: 1, height: 2 }
+            let arrow_source = match self.selection {
+                Some((_, selection_y)) if selection_y == output_index => Theme::RECT_ARROW_LEFT_ACTIVE,
+                _ => Theme::RECT_ARROW_LEFT_NORMAL,
             };
 
             let arrow_position = PixelPosition {
@@ -79,13 +75,9 @@ impl MidiMatrixApp {
         }
 
         for (input_index, (_, input_name)) in self.inputs.iter().enumerate() {
-            let arrow_source = if match self.selection {
-                Some((selection_x, _)) => selection_x == input_index,
-                _ => false,
-            } {
-                TileRect { x: 6, y: 3, width: 2, height: 1 }
-            } else {
-                TileRect { x: 6, y: 1, width: 2, height: 1 }
+            let arrow_source = match self.selection {
+                Some((selection_x, _)) if selection_x == input_index => Theme::RECT_ARROW_DOWN_ACTIVE,
+                _ => Theme::RECT_ARROW_DOWN_NORMAL,
             };
 
             let arrow_position = PixelPosition {
@@ -113,11 +105,11 @@ impl MidiMatrixApp {
                 let has_connection = self.connections.contains(&(*input_addr, *output_addr));
                 let currently_down = (self.mouse_down) && (self.selection == Some((input_index, output_index)));
 
-                let button_source = match (currently_down, has_connection) {
-                    (false, true) => TileRect { x: 0, y: 2, width: 2, height: 2 },
-                    (false, false) => TileRect { x: 0, y: 0, width: 2, height: 2 },
-                    (true, true) => TileRect { x: 2, y: 2, width: 2, height: 2 },
-                    (true, false) => TileRect { x: 2, y: 0, width: 2, height: 2 },
+                let button_source = match (has_connection, currently_down) {
+                    (false, false) => Theme::RECT_BUTTON_NORMAL,
+                    (false, true) => Theme::RECT_BUTTON_NORMAL_DOWN,
+                    (true, false) => Theme::RECT_BUTTON_ACTIVE,
+                    (true, true) => Theme::RECT_BUTTON_ACTIVE_DOWN,
                 };
 
                 let button_position = PixelPosition {
