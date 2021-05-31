@@ -48,8 +48,10 @@ impl<'a> Theme<'a> {
 
     pub const RECT_BUTTON_NORMAL: TileRect = TileRect { x: 0, y: 0, width: 2, height: 2 };
     pub const RECT_BUTTON_ACTIVE: TileRect = TileRect { x: 0, y: 2, width: 2, height: 2 };
+    pub const RECT_BUTTON_DISABLED: TileRect = TileRect { x: 0, y: 4, width: 2, height: 2 };
     pub const RECT_BUTTON_NORMAL_DOWN: TileRect = TileRect { x: 2, y: 0, width: 2, height: 2 };
     pub const RECT_BUTTON_ACTIVE_DOWN: TileRect = TileRect { x: 2, y: 2, width: 2, height: 2 };
+    pub const RECT_BUTTON_DISABLED_DOWN: TileRect = TileRect { x: 2, y: 4, width: 2, height: 2 };
 
     pub fn new(texture_creator: &'a TextureCreator<WindowContext>, manifest_path: &Path) -> Result<Theme<'a>, String> {
         // TODO: check width, height mod

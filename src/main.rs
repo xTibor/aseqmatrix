@@ -105,11 +105,13 @@ impl MidiMatrixApp {
                 let has_connection = self.connections.contains(&(*input_addr, *output_addr));
                 let currently_down = (self.mouse_down) && (self.selection == Some((input_index, output_index)));
 
-                let button_source = match (has_connection, currently_down) {
-                    (false, false) => Theme::RECT_BUTTON_NORMAL,
-                    (false, true) => Theme::RECT_BUTTON_NORMAL_DOWN,
-                    (true, false) => Theme::RECT_BUTTON_ACTIVE,
-                    (true, true) => Theme::RECT_BUTTON_ACTIVE_DOWN,
+                let button_source = match (input_addr == output_addr, has_connection, currently_down) {
+                    (true, _, false) => Theme::RECT_BUTTON_DISABLED,
+                    (true, _, true) => Theme::RECT_BUTTON_DISABLED_DOWN,
+                    (false, false, false) => Theme::RECT_BUTTON_NORMAL,
+                    (false, false, true) => Theme::RECT_BUTTON_NORMAL_DOWN,
+                    (false, true, false) => Theme::RECT_BUTTON_ACTIVE,
+                    (false, true, true) => Theme::RECT_BUTTON_ACTIVE_DOWN,
                 };
 
                 let button_position = PixelPosition {
@@ -339,14 +341,16 @@ fn main() -> Result<(), String> {
                             let input_addr = app.inputs[selection_x].0;
                             let output_addr = app.outputs[selection_y].0;
 
-                            let seq = Seq::open(None, None, false).unwrap();
-                            if app.connections.contains(&(input_addr, output_addr)) {
-                                seq.unsubscribe_port(input_addr, output_addr).unwrap();
-                            } else {
-                                let mut sub = PortSubscribe::empty().unwrap();
-                                sub.set_sender(input_addr);
-                                sub.set_dest(output_addr);
-                                seq.subscribe_port(&sub).unwrap();
+                            if input_addr != output_addr {
+                                let seq = Seq::open(None, None, false).unwrap();
+                                if app.connections.contains(&(input_addr, output_addr)) {
+                                    seq.unsubscribe_port(input_addr, output_addr).unwrap();
+                                } else {
+                                    let mut sub = PortSubscribe::empty().unwrap();
+                                    sub.set_sender(input_addr);
+                                    sub.set_dest(output_addr);
+                                    seq.subscribe_port(&sub).unwrap();
+                                }
                             }
                         }
                     }
