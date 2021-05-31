@@ -208,8 +208,7 @@ fn main() -> Result<(), String> {
     video_subsys.enable_screen_saver();
     sdl2::hint::set("SDL_MOUSE_FOCUS_CLICKTHROUGH", "1");
 
-    let window =
-        video_subsys.window("MIDI Matrix", 640, 480).position_centered().hidden().build().map_err(|e| e.to_string())?;
+    let window = video_subsys.window("MIDI Matrix", 640, 480).hidden().build().map_err(|e| e.to_string())?;
 
     let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
     let texture_creator = canvas.texture_creator();
