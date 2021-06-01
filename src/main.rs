@@ -338,22 +338,53 @@ fn main() -> Result<(), String> {
 
                         if let Some((selection_x, selection_y)) = app.selection {
                             // assert!(selection in bounds)
-                            let input_addr = app.inputs[selection_x].0;
-                            let output_addr = app.outputs[selection_y].0;
+                            let new_input = app.inputs[selection_x].0;
+                            let new_output = app.outputs[selection_y].0;
 
-                            if input_addr != output_addr {
+                            if new_input != new_output {
                                 let seq = Seq::open(None, None, false).unwrap();
-                                if app.connections.contains(&(input_addr, output_addr)) {
-                                    seq.unsubscribe_port(input_addr, output_addr).unwrap();
+                                if app.connections.contains(&(new_input, new_output)) {
+                                    seq.unsubscribe_port(new_input, new_output).unwrap();
                                 } else {
-                                    // Remove the reverse direction connection first to avoid feedback loops
-                                    if app.connections.contains(&(output_addr, input_addr)) {
-                                        seq.unsubscribe_port(output_addr, input_addr).unwrap();
+                                    // <feedback_loop_resolver>
+                                    let outgoing_target_ports = app
+                                        .connections
+                                        .iter()
+                                        .filter(|(input, _)| *input == new_output)
+                                        .map(|(_, output)| *output)
+                                        .collect::<Vec<Addr>>();
+
+                                    for &port in &outgoing_target_ports {
+                                        let mut todo = vec![port];
+                                        let mut done = vec![];
+                                        let mut feedback_loop_found = false;
+
+                                        while !todo.is_empty() {
+                                            let current = todo.pop().unwrap();
+                                            if current == new_input {
+                                                feedback_loop_found = true;
+                                                break;
+                                            }
+                                            todo.extend_from_slice(
+                                                &app.connections
+                                                    .iter()
+                                                    .filter(|(input, _)| *input == current)
+                                                    .filter(|(_, output)| !done.contains(output))
+                                                    .map(|(_, output)| *output)
+                                                    .collect::<Vec<Addr>>(),
+                                            );
+                                            done.push(current);
+                                        }
+
+                                        if feedback_loop_found {
+                                            seq.unsubscribe_port(new_output, port).unwrap();
+                                        }
                                     }
+                                    // </feedback_loop_resolver>
 
                                     let mut sub = PortSubscribe::empty().unwrap();
-                                    sub.set_sender(input_addr);
-                                    sub.set_dest(output_addr);
+                                    sub.set_sender(new_input);
+                                    sub.set_dest(new_output);
                                     seq.subscribe_port(&sub).unwrap();
                                 }
                             }
