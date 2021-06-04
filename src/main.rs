@@ -21,7 +21,7 @@ use theme::Theme;
 
 struct MidiPortChangeEvent;
 
-struct MidiMatrixApp {
+struct AppState {
     inputs: Vec<(Addr, String)>,
     outputs: Vec<(Addr, String)>,
     connections: Vec<(Addr, Addr)>,
@@ -29,9 +29,9 @@ struct MidiMatrixApp {
     mouse_down: bool,
 }
 
-impl MidiMatrixApp {
-    fn new() -> MidiMatrixApp {
-        MidiMatrixApp {
+impl AppState {
+    fn new() -> AppState {
+        AppState {
             inputs: Vec::new(),
             outputs: Vec::new(),
             connections: Vec::new(),
@@ -194,7 +194,7 @@ impl MidiMatrixApp {
 }
 
 fn main() -> Result<(), String> {
-    let app = Arc::new(Mutex::new(MidiMatrixApp::new()));
+    let app = Arc::new(Mutex::new(AppState::new()));
 
     let sdl_context = sdl2::init()?;
 
@@ -202,11 +202,11 @@ fn main() -> Result<(), String> {
     video_subsys.enable_screen_saver();
     sdl2::hint::set("SDL_MOUSE_FOCUS_CLICKTHROUGH", "1");
 
-    let window = video_subsys.window("MIDI Matrix", 640, 480).hidden().build().map_err(|e| e.to_string())?;
+    let window = video_subsys.window("ALSA Sequencer Matrix", 640, 480).hidden().build().map_err(|e| e.to_string())?;
 
     let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
     let texture_creator = canvas.texture_creator();
-    let mut theme = Theme::new(&texture_creator, Path::new("themes/amber/theme.toml"))?;
+    let mut theme = Theme::new(&texture_creator, Path::new("themes/memphis/theme.toml"))?;
 
     {
         let app = app.lock().unwrap();
@@ -227,7 +227,7 @@ fn main() -> Result<(), String> {
         thread::spawn(move || {
             let mut seq = Seq::open(None, None, false).unwrap();
 
-            let midi_name = CString::new("MIDI Matrix").unwrap();
+            let midi_name = CString::new("ALSA Sequencer Matrix").unwrap();
             seq.set_client_name(&midi_name).unwrap();
 
             let client_port = {
