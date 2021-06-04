@@ -1,0 +1,9 @@
+[theme]
+name = "flat-blue"
+version = "0.1.0"
+authors = ["Nagy Tibor <xnagytibor@protonmail.com>"]
+license = "MIT"
+
+[metrics]
+window-margin = 6
+label-spacing = 6
