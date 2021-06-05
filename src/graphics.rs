@@ -5,6 +5,8 @@ use sdl2::rect::{Point, Rect};
 use sdl2::render::{Canvas, Texture, TextureCreator};
 use sdl2::video::{Window, WindowContext};
 
+use crate::error::{sdl_error, Error};
+
 #[derive(Copy, Clone, Debug)]
 pub struct PixelPosition {
     pub x: isize,
@@ -48,8 +50,8 @@ impl<'a> TileTexture<'a> {
         texture_creator: &'a TextureCreator<WindowContext>,
         texture_path: P,
         tiles_per_dimension: TileDimension,
-    ) -> Result<TileTexture<'a>, String> {
-        let texture = texture_creator.load_texture(texture_path)?;
+    ) -> Result<TileTexture<'a>, Error> {
+        let texture = texture_creator.load_texture(texture_path).map_err(sdl_error)?;
 
         let tile_size = {
             let query = texture.query();
@@ -68,7 +70,7 @@ pub fn draw_tiles(
     tile_texture: &TileTexture,
     source: TileRect,
     target: PixelPosition,
-) -> Result<(), String> {
+) -> Result<(), Error> {
     let source_rect = Rect::new(
         source.x as i32 * tile_texture.tile_size.width as i32,
         source.y as i32 * tile_texture.tile_size.height as i32,
@@ -83,7 +85,7 @@ pub fn draw_tiles(
         source.height as u32 * tile_texture.tile_size.height as u32,
     );
 
-    canvas.copy(&tile_texture.texture, source_rect, target_rect)?;
+    canvas.copy(&tile_texture.texture, source_rect, target_rect).map_err(sdl_error)?;
 
     Ok(())
 }
@@ -94,7 +96,7 @@ pub fn draw_character(
     character: char,
     target: PixelPosition,
     rotation: usize,
-) -> Result<(), String> {
+) -> Result<(), Error> {
     let source_rect = {
         let tile_index = if (character <= '\u{001F}') || (character >= '\u{0080}') { 0x7F } else { character as usize };
         let tile_position = TilePosition {
@@ -116,15 +118,17 @@ pub fn draw_character(
         tile_texture.tile_size.height as u32,
     );
 
-    canvas.copy_ex(
-        &tile_texture.texture,
-        source_rect,
-        target_rect,
-        90.0 * rotation as f64,
-        Point::new(0, 0),
-        false,
-        false,
-    )?;
+    canvas
+        .copy_ex(
+            &tile_texture.texture,
+            source_rect,
+            target_rect,
+            90.0 * rotation as f64,
+            Point::new(0, 0),
+            false,
+            false,
+        )
+        .map_err(sdl_error)?;
 
     Ok(())
 }
@@ -135,7 +139,7 @@ pub fn draw_string(
     string: &str,
     target: PixelPosition,
     rotation: usize,
-) -> Result<(), String> {
+) -> Result<(), Error> {
     let (dx, dy) = match rotation {
         0 => (tile_texture.tile_size.width as isize, 0),
         1 => (0, tile_texture.tile_size.width as isize),
@@ -156,8 +160,8 @@ pub fn draw_string(
     Ok(())
 }
 
-pub fn draw_tiled_background(canvas: &mut Canvas<Window>, texture: &Texture) -> Result<(), String> {
-    let (canvas_width, canvas_height) = canvas.output_size()?;
+pub fn draw_tiled_background(canvas: &mut Canvas<Window>, texture: &Texture) -> Result<(), Error> {
+    let (canvas_width, canvas_height) = canvas.output_size().map_err(sdl_error)?;
     let (texture_width, texture_height) = {
         let query = texture.query();
         (query.width, query.height)
@@ -172,7 +176,7 @@ pub fn draw_tiled_background(canvas: &mut Canvas<Window>, texture: &Texture) -> 
                 texture_width,
                 texture_height,
             );
-            canvas.copy(texture, source_rect, target_rect)?;
+            canvas.copy(texture, source_rect, target_rect).map_err(sdl_error)?;
         }
     }
 

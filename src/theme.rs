@@ -6,6 +6,7 @@ use sdl2::render::{Texture, TextureCreator};
 use sdl2::video::WindowContext;
 use serde_derive::Deserialize;
 
+use crate::error::{sdl_error, Error};
 use crate::graphics::{TileDimension, TileRect, TileTexture};
 
 #[derive(Deserialize)]
@@ -53,12 +54,14 @@ impl<'a> Theme<'a> {
     pub const RECT_BUTTON_ACTIVE_DOWN: TileRect = TileRect { x: 2, y: 2, width: 2, height: 2 };
     pub const RECT_BUTTON_DISABLED_DOWN: TileRect = TileRect { x: 2, y: 4, width: 2, height: 2 };
 
-    pub fn new(texture_creator: &'a TextureCreator<WindowContext>, manifest_path: &Path) -> Result<Theme<'a>, String> {
+    pub fn new(texture_creator: &'a TextureCreator<WindowContext>, manifest_path: &Path) -> Result<Theme<'a>, Error> {
         // TODO: check width, height mod
-        let manifest = toml::from_slice(&fs::read(manifest_path).unwrap()).unwrap();
+        let manifest = toml::from_slice(&fs::read(manifest_path)?)?;
         let theme_directory = manifest_path.parent().unwrap();
 
-        let background_texture = texture_creator.load_texture(theme_directory.join("background.png"))?;
+        let background_texture =
+            texture_creator.load_texture(theme_directory.join("background.png")).map_err(sdl_error)?;
+
         let controls_texture = TileTexture::new(
             texture_creator,
             theme_directory.join("controls.png"),
