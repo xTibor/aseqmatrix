@@ -258,15 +258,15 @@ fn main() -> Result<(), Error> {
                 for client in ClientIter::new(&seq) {
                     for port in PortIter::new(&seq, client.get_client()) {
                         if port.get_capability().contains(PortCap::SUBS_READ) {
-                            app.inputs.push((port.addr(), port.get_name()?.to_owned()))
+                            app.inputs.push((port.addr(), port.get_name()?.to_owned()));
                         }
 
                         if port.get_capability().contains(PortCap::SUBS_WRITE) {
-                            app.outputs.push((port.addr(), port.get_name()?.to_owned()))
+                            app.outputs.push((port.addr(), port.get_name()?.to_owned()));
                         }
 
                         for sub in PortSubscribeIter::new(&seq, port.addr(), QuerySubsType::WRITE) {
-                            app.connections.push((sub.get_sender(), sub.get_dest()))
+                            app.connections.push((sub.get_sender(), sub.get_dest()));
                         }
                     }
                 }
