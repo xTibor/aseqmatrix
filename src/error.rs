@@ -15,46 +15,6 @@ pub enum Error {
     TomlError(toml::de::Error),
 }
 
-impl From<alsa::Error> for Error {
-    fn from(err: alsa::Error) -> Self {
-        Self::AlsaError(err)
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Self {
-        Self::IoError(err)
-    }
-}
-
-impl From<NulError> for Error {
-    fn from(err: NulError) -> Self {
-        Self::NulError(err)
-    }
-}
-
-impl From<IntegerOrSdlError> for Error {
-    fn from(err: IntegerOrSdlError) -> Self {
-        Self::SdlIntError(err)
-    }
-}
-
-pub fn sdl_error(err: String) -> Error {
-    Error::SdlStrError(err)
-}
-
-impl From<WindowBuildError> for Error {
-    fn from(err: WindowBuildError) -> Self {
-        Self::SdlWindowBuildError(err)
-    }
-}
-
-impl From<toml::de::Error> for Error {
-    fn from(err: toml::de::Error) -> Self {
-        Self::TomlError(err)
-    }
-}
-
 impl error::Error for Error {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match *self {
@@ -94,5 +54,45 @@ impl fmt::Display for Error {
                 write!(f, "TOML error: {}", err)
             }
         }
+    }
+}
+
+impl From<alsa::Error> for Error {
+    fn from(err: alsa::Error) -> Self {
+        Self::AlsaError(err)
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Self {
+        Self::IoError(err)
+    }
+}
+
+impl From<NulError> for Error {
+    fn from(err: NulError) -> Self {
+        Self::NulError(err)
+    }
+}
+
+impl From<IntegerOrSdlError> for Error {
+    fn from(err: IntegerOrSdlError) -> Self {
+        Self::SdlIntError(err)
+    }
+}
+
+pub fn sdl_error(err: String) -> Error {
+    Error::SdlStrError(err)
+}
+
+impl From<WindowBuildError> for Error {
+    fn from(err: WindowBuildError) -> Self {
+        Self::SdlWindowBuildError(err)
+    }
+}
+
+impl From<toml::de::Error> for Error {
+    fn from(err: toml::de::Error) -> Self {
+        Self::TomlError(err)
     }
 }
