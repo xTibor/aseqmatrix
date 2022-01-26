@@ -30,6 +30,7 @@ struct AppState {
     connections: Vec<(Addr, Addr)>,
     selection: Option<(usize, usize)>,
     mouse_down: bool,
+    show_addresses: bool,
 }
 
 impl AppState {
@@ -40,7 +41,34 @@ impl AppState {
             connections: Vec::new(),
             selection: None,
             mouse_down: false,
+            show_addresses: false,
         }
+    }
+
+    fn input_names(&self) -> Vec<String> {
+        self.inputs
+            .iter()
+            .map(|(port_addr, port_name)| {
+                if self.show_addresses {
+                    format!("{} {:>3}:{}", port_name, port_addr.client, port_addr.port)
+                } else {
+                    port_name.clone()
+                }
+            })
+            .collect()
+    }
+
+    fn output_names(&self) -> Vec<String> {
+        self.outputs
+            .iter()
+            .map(|(port_addr, port_name)| {
+                if self.show_addresses {
+                    format!("{:>3}:{} {}", port_addr.client, port_addr.port, port_name)
+                } else {
+                    port_name.clone()
+                }
+            })
+            .collect()
     }
 
     fn render(&self, canvas: &mut Canvas<Window>, theme: &Theme) -> Result<(), Error> {
@@ -54,7 +82,7 @@ impl AppState {
         let (horizontal_arrow_width, vertical_arrow_height) =
             (theme.controls_texture.tile_size.width as isize, theme.controls_texture.tile_size.height as isize);
 
-        for (output_index, (_, output_name)) in self.outputs.iter().enumerate() {
+        for (output_index, output_name) in self.output_names().iter().enumerate() {
             let arrow_source = match self.selection {
                 Some((_, selection_y)) if selection_y == output_index => Theme::RECT_ARROW_LEFT_ACTIVE,
                 _ => Theme::RECT_ARROW_LEFT_NORMAL,
@@ -77,7 +105,7 @@ impl AppState {
             draw_string(canvas, &theme.font_texture, output_name, text_position, 0)?;
         }
 
-        for (input_index, (_, input_name)) in self.inputs.iter().enumerate() {
+        for (input_index, input_name) in self.input_names().iter().enumerate() {
             let arrow_source = match self.selection {
                 Some((selection_x, _)) if selection_x == input_index => Theme::RECT_ARROW_DOWN_ACTIVE,
                 _ => Theme::RECT_ARROW_DOWN_NORMAL,
@@ -137,14 +165,14 @@ impl AppState {
             + self.inputs.len() * (2 * theme.controls_texture.tile_size.width) // Controls
             + theme.controls_texture.tile_size.width // Arrow
             + theme.manifest.metrics.label_spacing
-            + self.outputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) * (theme.font_texture.tile_size.width)
+            + self.output_names().iter().map(String::len).max().unwrap_or(0) * (theme.font_texture.tile_size.width)
             + theme.manifest.metrics.window_margin;
 
         let window_height = theme.manifest.metrics.window_margin
             + self.outputs.len() * (2 * theme.controls_texture.tile_size.height) // Controls
             + theme.controls_texture.tile_size.height // Arrow
             + theme.manifest.metrics.label_spacing
-            + self.inputs.iter().map(|(_, name)| name.len()).max().unwrap_or(0) * (theme.font_texture.tile_size.width)
+            + self.input_names().iter().map(String::len).max().unwrap_or(0) * (theme.font_texture.tile_size.width)
             + theme.manifest.metrics.window_margin;
 
         let window = canvas.window_mut();
@@ -399,6 +427,12 @@ fn main() -> Result<(), Error> {
                 Event::User { .. } => {
                     // TODO: Check user_event kind
                     let app = app.lock().unwrap();
+                    app.resize_window(&mut canvas, &theme)?;
+                    app.render(&mut canvas, &theme)?;
+                }
+                Event::KeyDown { keycode: Some(Keycode::F11), .. } => {
+                    let mut app = app.lock().unwrap();
+                    app.show_addresses = !app.show_addresses;
                     app.resize_window(&mut canvas, &theme)?;
                     app.render(&mut canvas, &theme)?;
                 }
