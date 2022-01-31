@@ -453,6 +453,12 @@ fn main() -> Result<(), Error> {
                     app.resize_window(&mut canvas, &theme)?;
                     app.render(&mut canvas, &theme)?;
                 }
+                Event::KeyDown { keycode: Some(Keycode::F5), .. } => {
+                    let app = app.lock().unwrap();
+                    theme = Theme::new(&texture_creator, &app.theme_names[app.theme_index])?;
+                    app.resize_window(&mut canvas, &theme)?;
+                    app.render(&mut canvas, &theme)?;
+                }
                 _ => {}
             }
         }
