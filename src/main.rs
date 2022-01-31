@@ -256,7 +256,7 @@ fn main() -> Result<(), Error> {
     {
         let app = Arc::clone(&app);
         thread::spawn(move || -> Result<(), Error> {
-            let mut seq = Seq::open(None, None, false)?;
+            let seq = Seq::open(None, None, false)?;
 
             let midi_name = CString::new("ALSA Sequencer Matrix")?;
             seq.set_client_name(&midi_name)?;
@@ -271,7 +271,7 @@ fn main() -> Result<(), Error> {
             };
 
             {
-                let mut sub = PortSubscribe::empty()?;
+                let sub = PortSubscribe::empty()?;
                 sub.set_sender(Addr::system_announce());
                 sub.set_dest(client_port);
                 seq.subscribe_port(&sub)?;
@@ -415,7 +415,7 @@ fn main() -> Result<(), Error> {
                                     }
                                     // </feedback_loop_resolver>
 
-                                    let mut sub = PortSubscribe::empty()?;
+                                    let sub = PortSubscribe::empty()?;
                                     sub.set_sender(new_input);
                                     sub.set_dest(new_output);
                                     seq.subscribe_port(&sub)?;
