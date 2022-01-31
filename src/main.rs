@@ -1,5 +1,4 @@
 use std::ffi::CString;
-use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::{thread, time};
 
@@ -31,10 +30,15 @@ struct AppState {
     selection: Option<(usize, usize)>,
     mouse_down: bool,
     show_addresses: bool,
+    theme_names: Vec<String>,
+    theme_index: usize,
 }
 
 impl AppState {
     fn new() -> AppState {
+        let theme_names = Theme::available_theme_names().unwrap();
+        let theme_index = theme_names.iter().position(|theme_name| theme_name == "memphis").unwrap_or(0);
+
         AppState {
             inputs: Vec::new(),
             outputs: Vec::new(),
@@ -42,6 +46,8 @@ impl AppState {
             selection: None,
             mouse_down: false,
             show_addresses: false,
+            theme_names,
+            theme_index,
         }
     }
 
@@ -237,7 +243,11 @@ fn main() -> Result<(), Error> {
 
     let mut canvas = window.into_canvas().build()?;
     let texture_creator = canvas.texture_creator();
-    let mut theme = Theme::new(&texture_creator, Path::new("themes/memphis/theme.toml"))?;
+
+    let mut theme = {
+        let app = app.lock().unwrap();
+        Theme::new(&texture_creator, &app.theme_names[app.theme_index])?
+    };
 
     {
         let app = app.lock().unwrap();
@@ -437,8 +447,9 @@ fn main() -> Result<(), Error> {
                     app.render(&mut canvas, &theme)?;
                 }
                 Event::KeyDown { keycode: Some(Keycode::F12), .. } => {
-                    let app = app.lock().unwrap();
-                    theme = Theme::new(&texture_creator, Path::new("themes/test/theme.toml"))?;
+                    let mut app = app.lock().unwrap();
+                    app.theme_index = (app.theme_index + 1) % app.theme_names.len();
+                    theme = Theme::new(&texture_creator, &app.theme_names[app.theme_index])?;
                     app.resize_window(&mut canvas, &theme)?;
                     app.render(&mut canvas, &theme)?;
                 }
