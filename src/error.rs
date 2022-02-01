@@ -6,13 +6,15 @@ use sdl2::IntegerOrSdlError;
 
 #[derive(Debug)]
 pub enum Error {
+    GeneralError(&'static str),
     AlsaError(alsa::Error),
     IoError(io::Error),
     NulError(NulError),
     SdlIntError(IntegerOrSdlError),
     SdlStrError(String),
     SdlWindowBuildError(WindowBuildError),
-    TomlError(toml::de::Error),
+    TomlSerializeError(toml::ser::Error),
+    TomlDeserializeError(toml::de::Error),
 }
 
 impl error::Error for Error {
@@ -23,7 +25,8 @@ impl error::Error for Error {
             Self::NulError(ref err) => Some(err),
             Self::SdlIntError(ref err) => Some(err),
             Self::SdlWindowBuildError(ref err) => Some(err),
-            Self::TomlError(ref err) => Some(err),
+            Self::TomlSerializeError(ref err) => Some(err),
+            Self::TomlDeserializeError(ref err) => Some(err),
             _ => None,
         }
     }
@@ -32,6 +35,9 @@ impl error::Error for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            Self::GeneralError(ref err) => {
+                write!(f, "General error: {}", err)
+            }
             Self::AlsaError(ref err) => {
                 write!(f, "ALSA error: {}", err)
             }
@@ -50,8 +56,11 @@ impl fmt::Display for Error {
             Self::SdlWindowBuildError(ref err) => {
                 write!(f, "SDL window builder error: {}", err)
             }
-            Self::TomlError(ref err) => {
-                write!(f, "TOML error: {}", err)
+            Self::TomlSerializeError(ref err) => {
+                write!(f, "TOML serialization error: {}", err)
+            }
+            Self::TomlDeserializeError(ref err) => {
+                write!(f, "TOML deserialization error: {}", err)
             }
         }
     }
@@ -91,8 +100,14 @@ impl From<WindowBuildError> for Error {
     }
 }
 
+impl From<toml::ser::Error> for Error {
+    fn from(err: toml::ser::Error) -> Self {
+        Self::TomlSerializeError(err)
+    }
+}
+
 impl From<toml::de::Error> for Error {
     fn from(err: toml::de::Error) -> Self {
-        Self::TomlError(err)
+        Self::TomlDeserializeError(err)
     }
 }

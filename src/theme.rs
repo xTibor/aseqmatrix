@@ -57,7 +57,9 @@ impl<'a> Theme<'a> {
     pub fn new(texture_creator: &'a TextureCreator<WindowContext>, manifest_path: &Path) -> Result<Theme<'a>, Error> {
         // TODO: check width, height mod
         let manifest = toml::from_slice(&fs::read(&manifest_path)?)?;
-        let theme_directory = manifest_path.parent().unwrap();
+        let theme_directory = manifest_path
+            .parent()
+            .ok_or(Error::GeneralError("failed to retrieve parent directory of theme manifest path"))?;
 
         let background_texture =
             texture_creator.load_texture(theme_directory.join("background.png")).map_err(sdl_error)?;
@@ -78,7 +80,10 @@ impl<'a> Theme<'a> {
 
     pub fn theme_manifest_paths() -> Result<Vec<PathBuf>, Error> {
         let themes_directory_builtin = "themes";
-        let themes_directory_user = dirs::data_dir().unwrap().join("aseqmatrix").join("themes");
+        let themes_directory_user = dirs::data_dir()
+            .ok_or(Error::GeneralError("failed to retrieve data directory"))?
+            .join("aseqmatrix")
+            .join("themes");
 
         let mut manifest_paths = fs::read_dir(themes_directory_builtin)?
             .chain(fs::read_dir(themes_directory_user)?)

@@ -36,15 +36,15 @@ struct AppState {
 }
 
 impl AppState {
-    fn new() -> AppState {
-        AppState {
+    fn new() -> Result<AppState, Error> {
+        Ok(AppState {
             inputs: Vec::new(),
             outputs: Vec::new(),
             connections: Vec::new(),
             selection: None,
             mouse_down: false,
-            config: AppConfig::new(),
-        }
+            config: AppConfig::new()?,
+        })
     }
 
     fn input_names(&self) -> Vec<String> {
@@ -227,7 +227,7 @@ impl AppState {
 }
 
 fn main() -> Result<(), Error> {
-    let app = Arc::new(Mutex::new(AppState::new()));
+    let app = Arc::new(Mutex::new(AppState::new()?));
 
     let sdl_context = sdl2::init().map_err(sdl_error)?;
 
@@ -439,7 +439,7 @@ fn main() -> Result<(), Error> {
                 Event::KeyDown { keycode: Some(Keycode::F11), .. } => {
                     let mut app = app.lock().unwrap();
                     app.config.show_addresses = !app.config.show_addresses;
-                    app.config.save();
+                    app.config.save()?;
                     app.resize_window(&mut canvas, &theme)?;
                     app.render(&mut canvas, &theme)?;
                 }
@@ -457,7 +457,7 @@ fn main() -> Result<(), Error> {
                     } else {
                         app.config.theme_manifest_path = theme_manifest_paths[0].clone();
                     }
-                    app.config.save();
+                    app.config.save()?;
 
                     theme = Theme::new(&texture_creator, &app.config.theme_manifest_path)?;
                     app.resize_window(&mut canvas, &theme)?;
