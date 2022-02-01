@@ -136,15 +136,19 @@ impl AppState {
         for (output_index, (output_addr, _)) in self.outputs.iter().enumerate() {
             for (input_index, (input_addr, _)) in self.inputs.iter().enumerate() {
                 let has_connection = self.connections.contains(&(*input_addr, *output_addr));
+                let currently_hovered = self.selection == Some((input_index, output_index));
                 let currently_down = (self.mouse_down) && (self.selection == Some((input_index, output_index)));
 
-                let button_source = match (input_addr == output_addr, has_connection, currently_down) {
-                    (true, _, false) => Theme::RECT_BUTTON_DISABLED,
-                    (true, _, true) => Theme::RECT_BUTTON_DISABLED_DOWN,
-                    (false, false, false) => Theme::RECT_BUTTON_NORMAL,
-                    (false, false, true) => Theme::RECT_BUTTON_NORMAL_DOWN,
-                    (false, true, false) => Theme::RECT_BUTTON_ACTIVE,
-                    (false, true, true) => Theme::RECT_BUTTON_ACTIVE_DOWN,
+                let button_source = match (input_addr == output_addr, has_connection, currently_down, currently_hovered) {
+                    (true, _, false, true) => Theme::RECT_BUTTON_DISABLED_HOVER,
+                    (true, _, true, true) => Theme::RECT_BUTTON_DISABLED_DOWN,
+                    (true, _, _, _) => Theme::RECT_BUTTON_DISABLED,
+                    (false, false, false, true) => Theme::RECT_BUTTON_NORMAL_HOVER,
+                    (false, false, true, true) => Theme::RECT_BUTTON_NORMAL_DOWN,
+                    (false, false, _, _) => Theme::RECT_BUTTON_NORMAL,
+                    (false, true, false, true) => Theme::RECT_BUTTON_ACTIVE_HOVER,
+                    (false, true, true, true) => Theme::RECT_BUTTON_ACTIVE_DOWN,
+                    (false, true, _, _) => Theme::RECT_BUTTON_ACTIVE,
                 };
 
                 let button_position = PixelPosition {

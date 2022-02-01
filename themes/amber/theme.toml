@@ -1,9 +1,0 @@
-[theme]
-name = "amber"
-version = "0.1.0"
-authors = ["Nagy Tibor <xnagytibor@protonmail.com>"]
-license = "MIT"
-
-[metrics]
-window-margin = 12
-label-spacing = 12
