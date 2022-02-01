@@ -1,8 +1,6 @@
 use std::ffi::CString;
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
 use std::sync::{Arc, Mutex};
-use std::{fs, thread, time};
+use std::{thread, time};
 
 use alsa::seq::{
     Addr, ClientIter, PortCap, PortInfo, PortIter, PortSubscribe, PortSubscribeIter, PortType, QuerySubsType, Seq,
@@ -18,43 +16,15 @@ mod graphics;
 use graphics::{draw_string, draw_tiled_background, draw_tiles, PixelDimension, PixelPosition};
 
 mod theme;
-use serde_derive::{Deserialize, Serialize};
 use theme::Theme;
 
 mod error;
 use error::{sdl_error, Error};
 
+mod config;
+use config::AppConfig;
+
 struct MidiPortChangeEvent;
-
-#[derive(Serialize, Deserialize, Default)]
-#[serde(rename_all = "kebab-case")]
-struct AppConfig {
-    show_addresses: bool,
-    theme_manifest_path: PathBuf,
-}
-
-impl AppConfig {
-    fn config_path() -> PathBuf {
-        dirs::config_dir().unwrap().join("aseqmatrix").join("config.toml")
-    }
-
-    fn new() -> AppConfig {
-        if let Ok(config_toml) = &fs::read(Self::config_path()) {
-            toml::from_slice(config_toml).unwrap()
-        } else {
-            AppConfig {
-                show_addresses: false,
-                theme_manifest_path: PathBuf::from("themes/memphis/theme.toml"),
-            }
-        }
-    }
-
-    fn save(&self) {
-        let config_path = Self::config_path();
-        fs::create_dir_all(config_path.parent().unwrap()).unwrap();
-        fs::write(config_path, &toml::to_vec(self).unwrap()).unwrap();
-    }
-}
 
 struct AppState {
     inputs: Vec<(Addr, String)>,
