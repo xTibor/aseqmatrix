@@ -32,6 +32,7 @@ struct AppState {
     connections: Vec<(Addr, Addr)>,
     selection: Option<(usize, usize)>,
     mouse_down: bool,
+    mouse_last_position: Option<PixelPosition>,
     config: AppConfig,
 }
 
@@ -43,6 +44,7 @@ impl AppState {
             connections: Vec::new(),
             selection: None,
             mouse_down: false,
+            mouse_last_position: None,
             config: AppConfig::new()?,
         })
     }
@@ -139,7 +141,8 @@ impl AppState {
                 let currently_hovered = self.selection == Some((input_index, output_index));
                 let currently_down = (self.mouse_down) && (self.selection == Some((input_index, output_index)));
 
-                let button_source = match (input_addr == output_addr, has_connection, currently_down, currently_hovered) {
+                let button_source = match (input_addr == output_addr, has_connection, currently_down, currently_hovered)
+                {
                     (true, _, false, true) => Theme::RECT_BUTTON_DISABLED_HOVER,
                     (true, _, true, true) => Theme::RECT_BUTTON_DISABLED_DOWN,
                     (true, _, _, _) => Theme::RECT_BUTTON_DISABLED,
@@ -166,7 +169,7 @@ impl AppState {
         Ok(())
     }
 
-    fn resize_window(&self, canvas: &mut Canvas<Window>, theme: &Theme) -> Result<(), Error> {
+    fn resize_window(&mut self, canvas: &mut Canvas<Window>, theme: &Theme) -> Result<(), Error> {
         let window_width = theme.manifest.metrics.window_margin
             + self.inputs.len() * (2 * theme.controls_texture.tile_size.width) // Controls
             + theme.controls_texture.tile_size.width // Arrow
@@ -183,6 +186,10 @@ impl AppState {
 
         let window = canvas.window_mut();
         window.set_size(window_width as u32, window_height as u32)?;
+
+        if let Some(mouse_last_position) = self.mouse_last_position {
+            self.update_selection(canvas, theme, mouse_last_position, false)?;
+        }
 
         // Workaround for SDL2 corrupting things right after resizing the window.
         thread::sleep(time::Duration::from_millis(20));
@@ -250,7 +257,7 @@ fn main() -> Result<(), Error> {
     };
 
     {
-        let app = app.lock().unwrap();
+        let mut app = app.lock().unwrap();
         app.resize_window(&mut canvas, &theme)?;
         app.render(&mut canvas, &theme)?;
 
@@ -353,6 +360,8 @@ fn main() -> Result<(), Error> {
                 }
                 Event::MouseMotion { x, y, .. } => {
                     let mut app = app.lock().unwrap();
+                    app.mouse_last_position = Some(PixelPosition { x: x as isize, y: y as isize });
+
                     app.update_selection(&mut canvas, &theme, PixelPosition { x: x as isize, y: y as isize }, false)?;
                 }
                 Event::MouseButtonDown { x, y, mouse_btn: MouseButton::Left, .. } => {
@@ -370,6 +379,7 @@ fn main() -> Result<(), Error> {
                 }
                 Event::MouseButtonUp { x, y, mouse_btn: MouseButton::Left, .. } => {
                     let mut app = app.lock().unwrap();
+
                     if app.mouse_down {
                         app.mouse_down = false;
                         app.update_selection(
@@ -436,7 +446,7 @@ fn main() -> Result<(), Error> {
                 }
                 Event::User { .. } => {
                     // TODO: Check user_event kind
-                    let app = app.lock().unwrap();
+                    let mut app = app.lock().unwrap();
                     app.resize_window(&mut canvas, &theme)?;
                     app.render(&mut canvas, &theme)?;
                 }
@@ -468,7 +478,7 @@ fn main() -> Result<(), Error> {
                     app.render(&mut canvas, &theme)?;
                 }
                 Event::KeyDown { keycode: Some(Keycode::F5), .. } => {
-                    let app = app.lock().unwrap();
+                    let mut app = app.lock().unwrap();
                     theme = Theme::new(&texture_creator, &app.config.theme_manifest_path)?;
                     app.resize_window(&mut canvas, &theme)?;
                     app.render(&mut canvas, &theme)?;
