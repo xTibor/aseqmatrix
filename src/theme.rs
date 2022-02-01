@@ -88,7 +88,7 @@ impl<'a> Theme<'a> {
         let mut manifest_paths = fs::read_dir(themes_directory_builtin)?
             .chain(fs::read_dir(themes_directory_user)?)
             .filter_map(Result::ok)
-            .filter(|direntry| direntry.file_type().unwrap().is_dir())
+            .filter(|direntry| direntry.file_type().map(|filetype| filetype.is_dir()).unwrap_or(false))
             .map(|direntry| direntry.path().join("theme.toml"))
             .filter(|path| path.exists())
             .collect::<Vec<PathBuf>>();

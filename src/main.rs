@@ -446,7 +446,7 @@ fn main() -> Result<(), Error> {
                 Event::KeyDown { keycode: Some(Keycode::F12), .. } => {
                     let mut app = app.lock().unwrap();
 
-                    let theme_manifest_paths = Theme::theme_manifest_paths().unwrap();
+                    let theme_manifest_paths = Theme::theme_manifest_paths()?;
 
                     if let Some(manifest_index) = theme_manifest_paths
                         .iter()
