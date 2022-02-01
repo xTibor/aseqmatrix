@@ -1,4 +1,5 @@
 use std::ffi::CString;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::{thread, time};
 
@@ -30,14 +31,17 @@ struct AppState {
     selection: Option<(usize, usize)>,
     mouse_down: bool,
     show_addresses: bool,
-    theme_names: Vec<String>,
+    theme_manifest_paths: Vec<PathBuf>,
     theme_index: usize,
 }
 
 impl AppState {
     fn new() -> AppState {
-        let theme_names = Theme::available_theme_names().unwrap();
-        let theme_index = theme_names.iter().position(|theme_name| theme_name == "memphis").unwrap_or(0);
+        let theme_manifest_paths = Theme::theme_manifest_paths().unwrap();
+        let theme_index = {
+            let default_manifest_path = Path::new("themes/memphis/theme.toml");
+            theme_manifest_paths.iter().position(|manifest_path| manifest_path == default_manifest_path).unwrap_or(0)
+        };
 
         AppState {
             inputs: Vec::new(),
@@ -46,7 +50,7 @@ impl AppState {
             selection: None,
             mouse_down: false,
             show_addresses: false,
-            theme_names,
+            theme_manifest_paths,
             theme_index,
         }
     }
@@ -246,7 +250,7 @@ fn main() -> Result<(), Error> {
 
     let mut theme = {
         let app = app.lock().unwrap();
-        Theme::new(&texture_creator, &app.theme_names[app.theme_index])?
+        Theme::new(&texture_creator, &app.theme_manifest_paths[app.theme_index])?
     };
 
     {
@@ -448,14 +452,14 @@ fn main() -> Result<(), Error> {
                 }
                 Event::KeyDown { keycode: Some(Keycode::F12), .. } => {
                     let mut app = app.lock().unwrap();
-                    app.theme_index = (app.theme_index + 1) % app.theme_names.len();
-                    theme = Theme::new(&texture_creator, &app.theme_names[app.theme_index])?;
+                    app.theme_index = (app.theme_index + 1) % app.theme_manifest_paths.len();
+                    theme = Theme::new(&texture_creator, &app.theme_manifest_paths[app.theme_index])?;
                     app.resize_window(&mut canvas, &theme)?;
                     app.render(&mut canvas, &theme)?;
                 }
                 Event::KeyDown { keycode: Some(Keycode::F5), .. } => {
                     let app = app.lock().unwrap();
-                    theme = Theme::new(&texture_creator, &app.theme_names[app.theme_index])?;
+                    theme = Theme::new(&texture_creator, &app.theme_manifest_paths[app.theme_index])?;
                     app.resize_window(&mut canvas, &theme)?;
                     app.render(&mut canvas, &theme)?;
                 }
