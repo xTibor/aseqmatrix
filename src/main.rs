@@ -1,7 +1,8 @@
 use std::ffi::CString;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::sync::{Arc, Mutex};
-use std::{thread, time};
+use std::{fs, thread, time};
 
 use alsa::seq::{
     Addr, ClientIter, PortCap, PortInfo, PortIter, PortSubscribe, PortSubscribeIter, PortType, QuerySubsType, Seq,
@@ -17,6 +18,7 @@ mod graphics;
 use graphics::{draw_string, draw_tiled_background, draw_tiles, PixelDimension, PixelPosition};
 
 mod theme;
+use serde_derive::{Deserialize, Serialize};
 use theme::Theme;
 
 mod error;
@@ -24,34 +26,54 @@ use error::{sdl_error, Error};
 
 struct MidiPortChangeEvent;
 
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+struct AppConfig {
+    show_addresses: bool,
+    theme_manifest_path: PathBuf,
+}
+
+impl AppConfig {
+    fn config_path() -> PathBuf {
+        dirs::config_dir().unwrap().join("aseqmatrix").join("config.toml")
+    }
+
+    fn new() -> AppConfig {
+        if let Ok(config_toml) = &fs::read(Self::config_path()) {
+            toml::from_slice(config_toml).unwrap()
+        } else {
+            AppConfig {
+                show_addresses: false,
+                theme_manifest_path: PathBuf::from("themes/memphis/theme.toml"),
+            }
+        }
+    }
+
+    fn save(&self) {
+        let config_path = Self::config_path();
+        fs::create_dir_all(config_path.parent().unwrap()).unwrap();
+        fs::write(config_path, &toml::to_vec(self).unwrap()).unwrap();
+    }
+}
+
 struct AppState {
     inputs: Vec<(Addr, String)>,
     outputs: Vec<(Addr, String)>,
     connections: Vec<(Addr, Addr)>,
     selection: Option<(usize, usize)>,
     mouse_down: bool,
-    show_addresses: bool,
-    theme_manifest_paths: Vec<PathBuf>,
-    theme_index: usize,
+    config: AppConfig,
 }
 
 impl AppState {
     fn new() -> AppState {
-        let theme_manifest_paths = Theme::theme_manifest_paths().unwrap();
-        let theme_index = {
-            let default_manifest_path = Path::new("themes/memphis/theme.toml");
-            theme_manifest_paths.iter().position(|manifest_path| manifest_path == default_manifest_path).unwrap_or(0)
-        };
-
         AppState {
             inputs: Vec::new(),
             outputs: Vec::new(),
             connections: Vec::new(),
             selection: None,
             mouse_down: false,
-            show_addresses: false,
-            theme_manifest_paths,
-            theme_index,
+            config: AppConfig::new(),
         }
     }
 
@@ -59,7 +81,7 @@ impl AppState {
         self.inputs
             .iter()
             .map(|(port_addr, port_name)| {
-                if self.show_addresses {
+                if self.config.show_addresses {
                     format!("{} {:>3}:{}", port_name, port_addr.client, port_addr.port)
                 } else {
                     port_name.clone()
@@ -72,7 +94,7 @@ impl AppState {
         self.outputs
             .iter()
             .map(|(port_addr, port_name)| {
-                if self.show_addresses {
+                if self.config.show_addresses {
                     format!("{:>3}:{} {}", port_addr.client, port_addr.port, port_name)
                 } else {
                     port_name.clone()
@@ -250,7 +272,7 @@ fn main() -> Result<(), Error> {
 
     let mut theme = {
         let app = app.lock().unwrap();
-        Theme::new(&texture_creator, &app.theme_manifest_paths[app.theme_index])?
+        Theme::new(&texture_creator, &app.config.theme_manifest_path)?
     };
 
     {
@@ -446,20 +468,34 @@ fn main() -> Result<(), Error> {
                 }
                 Event::KeyDown { keycode: Some(Keycode::F11), .. } => {
                     let mut app = app.lock().unwrap();
-                    app.show_addresses = !app.show_addresses;
+                    app.config.show_addresses = !app.config.show_addresses;
+                    app.config.save();
                     app.resize_window(&mut canvas, &theme)?;
                     app.render(&mut canvas, &theme)?;
                 }
                 Event::KeyDown { keycode: Some(Keycode::F12), .. } => {
                     let mut app = app.lock().unwrap();
-                    app.theme_index = (app.theme_index + 1) % app.theme_manifest_paths.len();
-                    theme = Theme::new(&texture_creator, &app.theme_manifest_paths[app.theme_index])?;
+
+                    let theme_manifest_paths = Theme::theme_manifest_paths().unwrap();
+
+                    if let Some(manifest_index) = theme_manifest_paths
+                        .iter()
+                        .position(|manifest_path| manifest_path == &app.config.theme_manifest_path)
+                    {
+                        let next_manifest_index = (manifest_index + 1) % theme_manifest_paths.len();
+                        app.config.theme_manifest_path = theme_manifest_paths[next_manifest_index].clone();
+                    } else {
+                        app.config.theme_manifest_path = theme_manifest_paths[0].clone();
+                    }
+                    app.config.save();
+
+                    theme = Theme::new(&texture_creator, &app.config.theme_manifest_path)?;
                     app.resize_window(&mut canvas, &theme)?;
                     app.render(&mut canvas, &theme)?;
                 }
                 Event::KeyDown { keycode: Some(Keycode::F5), .. } => {
                     let app = app.lock().unwrap();
-                    theme = Theme::new(&texture_creator, &app.theme_manifest_paths[app.theme_index])?;
+                    theme = Theme::new(&texture_creator, &app.config.theme_manifest_path)?;
                     app.resize_window(&mut canvas, &theme)?;
                     app.render(&mut canvas, &theme)?;
                 }
