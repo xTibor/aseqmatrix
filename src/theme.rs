@@ -85,6 +85,7 @@ impl<'a> Theme<'a> {
 
     pub fn theme_manifest_paths() -> Result<Vec<PathBuf>, Error> {
         let themes_directory_builtin = PathBuf::from("themes");
+        let themes_directory_system = PathBuf::from("/usr/share/aseqmatrix/themes");
         let themes_directory_user = dirs::data_dir()
             .ok_or(Error::GeneralError("failed to retrieve data directory"))?
             .join("aseqmatrix")
@@ -105,6 +106,7 @@ impl<'a> Theme<'a> {
 
         let mut manifest_paths = Vec::new();
         manifest_paths.append(&mut scan_theme_directory(&themes_directory_builtin)?);
+        manifest_paths.append(&mut scan_theme_directory(&themes_directory_system)?);
         manifest_paths.append(&mut scan_theme_directory(&themes_directory_user)?);
         manifest_paths.sort();
         Ok(manifest_paths)
