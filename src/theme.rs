@@ -84,21 +84,29 @@ impl<'a> Theme<'a> {
     }
 
     pub fn theme_manifest_paths() -> Result<Vec<PathBuf>, Error> {
-        let themes_directory_builtin = "themes";
+        let themes_directory_builtin = PathBuf::from("themes");
         let themes_directory_user = dirs::data_dir()
             .ok_or(Error::GeneralError("failed to retrieve data directory"))?
             .join("aseqmatrix")
             .join("themes");
 
-        let mut manifest_paths = fs::read_dir(themes_directory_builtin)?
-            .chain(fs::read_dir(themes_directory_user)?)
-            .filter_map(Result::ok)
-            .filter(|direntry| direntry.file_type().map(|filetype| filetype.is_dir()).unwrap_or(false))
-            .map(|direntry| direntry.path().join("theme.toml"))
-            .filter(|path| path.exists())
-            .collect::<Vec<PathBuf>>();
-        manifest_paths.sort();
+        fn scan_theme_directory(theme_directory: &Path) -> Result<Vec<PathBuf>, Error> {
+            if theme_directory.exists() {
+                Ok(fs::read_dir(theme_directory)?
+                    .filter_map(Result::ok)
+                    .filter(|direntry| direntry.file_type().map(|filetype| filetype.is_dir()).unwrap_or(false))
+                    .map(|direntry| direntry.path().join("theme.toml"))
+                    .filter(|path| path.exists())
+                    .collect::<Vec<PathBuf>>())
+            } else {
+                Ok(Vec::new())
+            }
+        }
 
+        let mut manifest_paths = Vec::new();
+        manifest_paths.append(&mut scan_theme_directory(&themes_directory_builtin)?);
+        manifest_paths.append(&mut scan_theme_directory(&themes_directory_user)?);
+        manifest_paths.sort();
         Ok(manifest_paths)
     }
 }

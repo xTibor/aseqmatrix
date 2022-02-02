@@ -462,15 +462,13 @@ fn main() -> Result<(), Error> {
 
                     let theme_manifest_paths = Theme::theme_manifest_paths()?;
 
-                    if let Some(manifest_index) = theme_manifest_paths
+                    let next_manifest_index = theme_manifest_paths
                         .iter()
                         .position(|manifest_path| manifest_path == &app.config.theme_manifest_path)
-                    {
-                        let next_manifest_index = (manifest_index + 1) % theme_manifest_paths.len();
-                        app.config.theme_manifest_path = theme_manifest_paths[next_manifest_index].clone();
-                    } else {
-                        app.config.theme_manifest_path = theme_manifest_paths[0].clone();
-                    }
+                        .map(|manifest_index| (manifest_index + 1) % theme_manifest_paths.len())
+                        .unwrap_or(0);
+
+                    app.config.theme_manifest_path = theme_manifest_paths[next_manifest_index].clone();
                     app.config.save()?;
 
                     theme = Theme::new(&texture_creator, &app.config.theme_manifest_path)?;
