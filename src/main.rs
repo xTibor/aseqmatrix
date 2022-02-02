@@ -13,7 +13,7 @@ use sdl2::render::Canvas;
 use sdl2::video::Window;
 
 mod graphics;
-use graphics::{draw_string, draw_tiled_background, draw_tiles, PixelDimension, PixelPosition};
+use graphics::{draw_borders, draw_string, draw_tiled_background, draw_tiles, PixelDimension, PixelPosition};
 
 mod theme;
 use theme::Theme;
@@ -77,6 +77,7 @@ impl AppState {
 
     fn render(&self, canvas: &mut Canvas<Window>, theme: &Theme) -> Result<(), Error> {
         draw_tiled_background(canvas, &theme.background_texture)?;
+        draw_borders(canvas, &theme.borders_texture)?;
 
         let button_dimensions = PixelDimension {
             width: theme.controls_texture.tile_size.width * 2,

@@ -182,3 +182,74 @@ pub fn draw_tiled_background(canvas: &mut Canvas<Window>, texture: &Texture) -> 
 
     Ok(())
 }
+
+pub fn draw_borders(canvas: &mut Canvas<Window>, borders_texture: &TileTexture) -> Result<(), Error> {
+    let (canvas_width, canvas_height) = canvas.output_size().map_err(sdl_error)?;
+
+    let tile_position_top = 0;
+    let tile_position_left = 0;
+    let tile_position_right = canvas_width as isize - borders_texture.tile_size.width as isize;
+    let tile_position_bottom = canvas_height as isize - borders_texture.tile_size.height as isize;
+
+    for x in 1..canvas_width as usize / borders_texture.tile_size.width {
+        let tile_position_x = x as isize * borders_texture.tile_size.width as isize;
+        draw_tiles(
+            canvas,
+            borders_texture,
+            TileRect { x: 1, y: 0, width: 1, height: 1 },
+            PixelPosition { x: tile_position_x, y: tile_position_top },
+        )?;
+        draw_tiles(
+            canvas,
+            borders_texture,
+            TileRect { x: 1, y: 2, width: 1, height: 1 },
+            PixelPosition { x: tile_position_x, y: tile_position_bottom },
+        )?;
+    }
+
+    for y in 1..canvas_height as usize / borders_texture.tile_size.height {
+        let tile_position_y = y as isize * borders_texture.tile_size.height as isize;
+        draw_tiles(
+            canvas,
+            borders_texture,
+            TileRect { x: 0, y: 1, width: 1, height: 1 },
+            PixelPosition { x: tile_position_left, y: tile_position_y },
+        )?;
+        draw_tiles(
+            canvas,
+            borders_texture,
+            TileRect { x: 2, y: 1, width: 1, height: 1 },
+            PixelPosition { x: tile_position_right, y: tile_position_y },
+        )?;
+    }
+
+    draw_tiles(
+        canvas,
+        borders_texture,
+        TileRect { x: 0, y: 0, width: 1, height: 1 },
+        PixelPosition { x: tile_position_left, y: tile_position_top },
+    )?;
+
+    draw_tiles(
+        canvas,
+        borders_texture,
+        TileRect { x: 2, y: 0, width: 1, height: 1 },
+        PixelPosition { x: tile_position_right, y: tile_position_top },
+    )?;
+
+    draw_tiles(
+        canvas,
+        borders_texture,
+        TileRect { x: 0, y: 2, width: 1, height: 1 },
+        PixelPosition { x: tile_position_left, y: tile_position_bottom },
+    )?;
+
+    draw_tiles(
+        canvas,
+        borders_texture,
+        TileRect { x: 2, y: 2, width: 1, height: 1 },
+        PixelPosition { x: tile_position_right, y: tile_position_bottom },
+    )?;
+
+    Ok(())
+}

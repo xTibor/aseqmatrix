@@ -38,6 +38,7 @@ pub struct Theme<'a> {
     pub background_texture: Texture<'a>,
     pub controls_texture: TileTexture<'a>,
     pub font_texture: TileTexture<'a>,
+    pub borders_texture: TileTexture<'a>,
 }
 
 impl<'a> Theme<'a> {
@@ -79,8 +80,13 @@ impl<'a> Theme<'a> {
             theme_directory.join("font.png"),
             TileDimension { width: 16, height: 8 },
         )?;
+        let borders_texture = TileTexture::new(
+            texture_creator,
+            theme_directory.join("borders.png"),
+            TileDimension { width: 3, height: 3 },
+        )?;
 
-        Ok(Theme { manifest, background_texture, controls_texture, font_texture })
+        Ok(Theme { manifest, background_texture, controls_texture, font_texture, borders_texture })
     }
 
     pub fn theme_manifest_paths() -> Result<Vec<PathBuf>, Error> {
