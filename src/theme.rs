@@ -14,8 +14,9 @@ use crate::graphics::{TileDimension, TileRect, TileTexture};
 pub struct ThemeMetadata {
     pub name: String,
     pub version: String,
-    pub authors: Vec<String>,
-    pub license: String,
+    pub authors: Option<Vec<String>>,
+    pub license: Option<String>,
+    pub comment: Option<String>,
 }
 
 #[derive(Deserialize)]

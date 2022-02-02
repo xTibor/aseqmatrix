@@ -1,0 +1,20 @@
+[theme]
+name = "Breeze Dark"
+version = "0.1.0"
+authors = [
+    "KDE Plasma contributors <https://invent.kde.org/plasma/breeze>",
+    "Nagy Tibor <xnagytibor@protonmail.com>",
+]
+license = "GPL-2.0-or-later"
+comment = """
+    Control bitmaps are sampled from the KDE Plasma Breeze visual style.
+
+    For further authorship information on the KDE Plasma Breeze theme,
+    visit the KDE source code repositories:
+    - https://invent.kde.org/plasma/breeze/-/graphs/master
+    - https://invent.kde.org/plasma/breeze/-/blob/master/AUTHORS
+"""
+
+[metrics]
+window-margin = 6
+label-spacing = 4
