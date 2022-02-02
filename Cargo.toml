@@ -13,14 +13,74 @@ serde = "1.0"
 serde_derive = "1.0"
 toml = "0.5"
 
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "z"
+strip = true
+
+# When you change anything in this section, you will need to clean your workspace
+# before generating a new AppImage. cargo-appimage is broken and doesn't properly
+# handle changes to the assets directories and the library exlusions list when it
+# already has build artifacts generated in the target/ directory. Also the assets
+# key doesn't respect .gitignore, packs all ignored files into the final AppImage
 [package.metadata.appimage]
 assets = ["themes"]
 auto_link = true
 auto_link_exclude_list = [
-    "ld-linux*",
+    #"libSDL2-2.0.so*",
+    #"libSDL2_image-2.0.so*",
+    "ld-linux-x86-64.so*",
+    "libFLAC.so*",
+    "libSDL2_gfx-1.0.so*",
+    "libX11.so*",
+    "libXau.so*",
+    "libXcursor.so*",
+    "libXdmcp.so*",
+    "libXext.so*",
+    "libXfixes.so*",
+    "libXi.so*",
+    "libXinerama.so*",
+    "libXrandr.so*",
+    "libXrender.so*",
+    "libXss.so*",
+    "libXxf86vm.so*",
+    "libapparmor.so*",
+    "libasound.so*",
+    "libasyncns.so*",
+    "libbsd.so*",
     "libc.so*",
+    "libdbus-1.so*",
     "libdl.so*",
+    "libffi.so*",
     "libgcc_s.so*",
+    "libgcrypt.so*",
+    "libgpg-error.so*",
+    "libjbig.so*",
+    "libjpeg.so*",
+    "liblz4.so*",
+    "liblzma.so*",
     "libm.so*",
+    "libnsl.so*",
+    "libogg.so*",
+    "libpng16.so*",
     "libpthread.so*",
+    "libpulse.so*",
+    "libpulsecommon-*.so",
+    "libresolv.so*",
+    "librt.so*",
+    "libsndfile.so*",
+    "libsystemd.so*",
+    "libtiff.so*",
+    "libvorbis.so*",
+    "libvorbisenc.so*",
+    "libwayland-client.so*",
+    "libwayland-cursor.so*",
+    "libwayland-egl.so*",
+    "libwebp.so*",
+    "libwrap.so*",
+    "libxcb.so*",
+    "libxkbcommon.so*",
+    "libz.so*",
+    "libzstd.so*",
 ]
