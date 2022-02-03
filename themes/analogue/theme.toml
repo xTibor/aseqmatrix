@@ -1,0 +1,12 @@
+[theme]
+name = "Analogue"
+version = "0.1.0"
+authors = ["Nagy Tibor <xnagytibor@protonmail.com>"]
+license = "MIT"
+comment = """
+    Buttons photographed from an LG LX-M241 micro hi-fi.
+"""
+
+[metrics]
+window-margin = 14
+label-spacing = 0
