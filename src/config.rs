@@ -25,7 +25,13 @@ impl AppConfig {
 
     pub fn new() -> Result<AppConfig, Error> {
         if let Ok(config_toml) = &fs::read(Self::config_path()?) {
-            Ok(toml::from_slice(config_toml)?)
+            let mut app_config: AppConfig = toml::from_slice(config_toml)?;
+
+            if !app_config.theme_manifest_path.exists() {
+                app_config.theme_manifest_path = Self::default_theme_manifest_path();
+            }
+
+            Ok(app_config)
         } else {
             Ok(AppConfig { show_addresses: false, theme_manifest_path: Self::default_theme_manifest_path() })
         }
