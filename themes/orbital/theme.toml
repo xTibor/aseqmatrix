@@ -1,0 +1,12 @@
+[theme]
+name = "Orbital"
+version = "0.1.0"
+authors = [
+    "OrbTk contributors <https://github.com/redox-os/orbtk>",
+    "Nagy Tibor <xnagytibor@protonmail.com>",
+]
+license = "MIT"
+
+[metrics]
+window-margin = 8
+label-spacing = 8
