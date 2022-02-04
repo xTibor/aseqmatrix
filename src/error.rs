@@ -4,6 +4,7 @@ use std::{error, fmt, io};
 use sdl2::video::WindowBuildError;
 use sdl2::IntegerOrSdlError;
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug)]
 pub enum Error {
     GeneralError(&'static str),

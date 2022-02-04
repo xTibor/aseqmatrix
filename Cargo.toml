@@ -3,7 +3,7 @@ name = "aseqmatrix"
 version = "0.1.0"
 authors = ["Nagy Tibor <xnagytibor@protonmail.com>"]
 license = "MIT"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 alsa = "0.6.0"
