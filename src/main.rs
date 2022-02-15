@@ -6,7 +6,7 @@ use alsa::seq::{
     Addr, ClientIter, PortCap, PortInfo, PortIter, PortSubscribe, PortSubscribeIter, PortType, QuerySubsType, Seq,
 };
 use alsa::PollDescriptors;
-use sdl2::event::Event;
+use sdl2::event::{Event, WindowEvent};
 use sdl2::keyboard::Keycode;
 use sdl2::mouse::MouseButton;
 use sdl2::render::Canvas;
@@ -358,6 +358,11 @@ fn main() -> Result<(), Error> {
             match event {
                 Event::Quit { .. } | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                     break 'main;
+                }
+                Event::Window { win_event: WindowEvent::SizeChanged(_, _), .. } => {
+                    // Workaround for SDL2 corrupting things right after resizing the window.
+                    let app = app.lock().unwrap();
+                    app.render(&mut canvas, &theme)?;
                 }
                 Event::MouseMotion { x, y, .. } => {
                     let mut app = app.lock().unwrap();
