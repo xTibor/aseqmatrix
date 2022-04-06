@@ -5,6 +5,9 @@ authors = ["Nagy Tibor <xnagytibor@protonmail.com>"]
 license = "MIT"
 edition = "2021"
 
+[badges]
+maintenance = { status = "as-is" }
+
 [dependencies]
 alsa = "0.6.0"
 dirs = "4.0.0"
